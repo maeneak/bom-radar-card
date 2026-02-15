@@ -1,5 +1,5 @@
 import { LitElement, html, type PropertyValues, type TemplateResult } from 'lit';
-import { customElement, property, state } from 'lit/decorators.js';
+import { property, state } from 'lit/decorators.js';
 import type { HomeAssistant, LovelaceCard } from 'custom-card-helpers';
 
 import { CARD_TYPE, CARD_VERSION } from './const';
@@ -53,7 +53,6 @@ window.customCards.push({
   description: 'A rain radar card using RainViewer composite radar imagery',
 });
 
-@customElement('bom-raster-radar-card')
 export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   static override styles = cardStyles;
 
@@ -495,4 +494,8 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
 
     this.mapController.setMarker([markerCoordinates.latitude, markerCoordinates.longitude], icon, markerVisible);
   }
+}
+
+if (!customElements.get('bom-raster-radar-card')) {
+  customElements.define('bom-raster-radar-card', BomRasterRadarCard);
 }

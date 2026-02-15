@@ -117,11 +117,15 @@ export class MapController {
       this.map.removeLayer(this.baseLayer);
     }
 
-    this.baseLayer = L.tileLayer(baseLayerConfig.tileUrl, {
+    const tileLayerOptions: L.TileLayerOptions = {
       maxZoom: baseLayerConfig.maxZoom,
       attribution: baseLayerConfig.attribution,
-      subdomains: baseLayerConfig.subdomains,
-    });
+    };
+    if (baseLayerConfig.subdomains !== undefined) {
+      tileLayerOptions.subdomains = baseLayerConfig.subdomains;
+    }
+
+    this.baseLayer = L.tileLayer(baseLayerConfig.tileUrl, tileLayerOptions);
     this.baseLayer.addTo(this.map);
   }
 
