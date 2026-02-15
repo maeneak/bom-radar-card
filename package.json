@@ -1,5 +1,5 @@
 {
-  "name": "bom-radar-card",
+  "name": "bom-raster-radar-card",
   "version": "4.1.0",
   "description": "A rain radar card using the new vector tiles from the Australian BOM",
   "keywords": [
@@ -10,7 +10,7 @@
     "lovelace",
     "custom-cards"
   ],
-  "module": "bom-radar-card.js",
+  "module": "bom-raster-radar-card.js",
   "repository": "git@github.com:makin-things/bom-radar-card.git",
   "author": "Hayden Kliese <hayden@kliese.net> Simon Ratcliffe <simon@makin-things.com>",
   "license": "MIT",

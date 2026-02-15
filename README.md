@@ -1,6 +1,6 @@
-# BOM Radar Card
+# BOM Raster Radar Card
 
-A Home Assistant rain radar card using WMTS raster tiles from the Australian BOM
+A Home Assistant custom card that displays Bureau of Meteorology (BoM) rain radar data using WMTS raster tiles.
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release][releases-shield]][releases]
@@ -14,90 +14,110 @@ A Home Assistant rain radar card using WMTS raster tiles from the Australian BOM
 
 ## Description
 
-The new Australian BOM radar products (mobile app and https://weather.bom.gov.au/) now use WMTS raster tiles to distribute radar images. This allows for one continuous map that can be zoomed and panned seamlessly. This card displays that map in Home Assistant. Radar colours are rendered server-side by BOM.
+BoM radar products (mobile app and https://weather.bom.gov.au/) are served as WMTS raster tiles.
+This card renders those tiles in Home Assistant with:
 
-![BOM Radar card](https://raw.githubusercontent.com/makin-things/bom-radar-card/master/bom-radar-card.gif)
+- Light and dark basemap styles
+- Configurable frame animation
+- Optional map controls (zoom, recenter, scale)
+- Optional home marker and location override
 
-## Options
+![BOM Raster Radar card](https://raw.githubusercontent.com/makin-things/bom-radar-card/master/bom-radar-card.gif)
 
-All of the options below can be selected using the GUI config editor, there is no need to edit the yaml config directly.
+## Configuration
 
-> 🏠 **Tip:** If you leave the location fields blank, the card will automatically use your **Home Assistant default location** for the map center and home marker.
+The card supports the visual editor, so you usually do not need to hand-edit YAML.
 
-| Name                 | Type    | Requirement  | Description                                                  | Default                                      |
-| -------------------- | ------- | ------------ | ------------------------------------------------------------ | -------------------------------------------- |
-| type                 | string  | **Required** |                                                              | must be `custom:bom-radar-card`              |
-| card_title           | string  | **Optional** | The title to display on the card                             | no title displayed                           |
-| map_style            | string  | **Optional** | Specifies the style for the map **_(Light, Dark)_**          | `'Light'` see section below for valid values |
-| zoom_level           | number  | **Optional** | The initial zoom level, can be from 3 to 10                  | `8`                                          |
-| center_latitude      | number  | **Optional** | The initial center latitude of the map                       | your HA default latitude                     |
-| center_longitude     | number  | **Optional** | The initial center longitude of the map                      | your HA default longitude                    |
-| marker_latitude      | number  | **Optional** | The latitude for the home icon if enabled                    | same as `center_latitude`                    |
-| marker_longitude     | number  | **Optional** | The longitude for the home icon if enabled                   | same as `center_longitude`                   |
-| frame_count          | number  | **Optional** | The number of frames to use in the loop                      | `7`                                          |
-| frame_delay          | number  | **Optional** | The number of milliseconds to show each frame                | `250`                                        |
-| restart_delay        | number  | **Optional** | The additional number of milliseconds to show the last frame | `1000`                                       |
-| overlay_transparency | number  | **Optional** | Percentage transparency (0–90%) applied to the radar overlay | `0`                                          |
-| show_zoom            | boolean | **Optional** | Show the zoom controls in the top right corner               | `true`                                       |
-| show_marker          | boolean | **Optional** | Show the home icon at the marker position                    | `true`                                       |
-| show_recenter        | boolean | **Optional** | Show the re-center control in the bottom right toolbar       | `true`                                       |
-| show_scale           | boolean | **Optional** | Show a scale in the bottom left corner                       | `true`                                       |
+If location fields are left blank, the card falls back to your Home Assistant default latitude/longitude.
 
-## Samples
+| Name                 | Type    | Requirement  | Description                                | Default                                |
+| -------------------- | ------- | ------------ | ------------------------------------------ | -------------------------------------- |
+| type                 | string  | **Required** | Card type                                  | `custom:bom-raster-radar-card`        |
+| card_title           | string  | **Optional** | Title text shown above the card            | no title                               |
+| map_style            | string  | **Optional** | Basemap style (`Light` or `Dark`)          | `Light`                                |
+| zoom_level           | number  | **Optional** | Initial map zoom (3-10)                    | `8`                                    |
+| center_latitude      | number  | **Optional** | Initial map center latitude                | HA default latitude                    |
+| center_longitude     | number  | **Optional** | Initial map center longitude               | HA default longitude                   |
+| show_marker          | boolean | **Optional** | Show home marker                           | `true`                                 |
+| marker_latitude      | number  | **Optional** | Marker latitude                            | same as center/HA default              |
+| marker_longitude     | number  | **Optional** | Marker longitude                           | same as center/HA default              |
+| frame_count          | number  | **Optional** | Number of radar frames in loop             | `7`                                    |
+| frame_delay          | number  | **Optional** | Delay between frames (ms)                  | `250`                                  |
+| restart_delay        | number  | **Optional** | Pause on final frame before restart (ms)   | `1000`                                 |
+| overlay_transparency | number  | **Optional** | Radar overlay transparency percent (0-90)  | `0`                                    |
+| show_zoom            | boolean | **Optional** | Show zoom control (top-right)              | `true`                                 |
+| show_recenter        | boolean | **Optional** | Show recenter control (bottom-right)       | `true`                                 |
+| show_scale           | boolean | **Optional** | Show scale control (bottom-left)           | `true`                                 |
 
-This is the configuration used to generate the radar loop on this page.
+## Example
 
 ```yaml
-type: custom:bom-radar-card
+type: custom:bom-raster-radar-card
+card_title: Rain Radar
 map_style: Light
 zoom_level: 8
 frame_count: 7
 frame_delay: 250
 restart_delay: 1000
+overlay_transparency: 0
 show_zoom: true
 show_marker: true
 show_recenter: true
 show_scale: true
 ```
 
-## Install
+## Installation
 
-If you use HACS, the card is now part of the default HACS store.
+### HACS
 
-If you don't use HACS (seriously you should as it makes life so much easier), you can download the required files from [latest releases](https://github.com/PlasmaPod/bom-radar-card/releases). Drop all of the files in `www/community/bom-radar-card` folder in your `config` directory. It should look like this:
-
-```
-    └── ...
-    └── configuration.yaml
-    └── www
-        └── community
-            └── bom-radar-card
-                └── bom-radar-card.js
-                └── home-circle-dark.svg
-                └── home-circle-light.svg
-                └── radar-colour-bar.png
-                └── recenter.png
-```
-
-Next add the following entry in lovelace configuration:
+Install via HACS as usual.
+If your resource is not auto-added, add:
 
 ```yaml
 resources:
-  - url: /local/community/bom-radar-card/bom-radar-card.js
+  - url: /hacsfiles/bom-radar-card/bom-raster-radar-card.js
     type: module
 ```
 
+### Manual
+
+Download release files and place them in:
+
+`config/www/community/bom-raster-radar-card/`
+
+Expected files:
+
+```text
+bom-raster-radar-card.js
+assets/home-circle-dark.svg
+assets/home-circle-light.svg
+assets/radar-colour-bar.png
+assets/recenter.png
+```
+
+Then add:
+
+```yaml
+resources:
+  - url: /local/community/bom-raster-radar-card/bom-raster-radar-card.js
+    type: module
+```
+
+## Migration Notes
+
+- New primary card type: `custom:bom-raster-radar-card`
+- New primary JS file: `bom-raster-radar-card.js`
+- Backward compatibility is kept for existing dashboards using `custom:bom-radar-card`
+
 ## Known Issues
 
-- **Marker drift after editing card settings**
-  Occasionally, after opening and saving changes in the **card editor**, the map marker may appear slightly offset or not align correctly on both the preview and live dashboard.
-  This is a temporary visual issue and does **not** affect the radar data or map center position internally.
-
-  **Fix:** Refresh your browser or the Home Assistant app after editing the card to restore the correct marker position.
+- Marker drift after editing card settings:
+  Occasionally after editing/saving, the marker may look slightly offset in preview/live views.
+  Refresh the browser or Home Assistant app to correct it.
 
 ## Acknowledgements
 
-A major rewrite of this card has been provided by Hayden Kliese <hayden@kliese.net> many thanks for the effort.
+A major rewrite of this card was provided by Hayden Kliese <hayden@kliese.net>.
 
 [license-shield]: https://img.shields.io/github/license/makin-things/bom-radar-card.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/makin-things/bom-radar-card.svg?style=for-the-badge

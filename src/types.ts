@@ -1,7 +1,7 @@
-import { LovelaceCardConfig } from 'custom-card-helpers';
+import type { LovelaceCardConfig } from 'custom-card-helpers';
 // BoM Radar Card configuration
-export interface BomRadarCardConfig extends LovelaceCardConfig {
-  type: 'custom:bom-radar-card';
+export interface BomRasterRadarCardConfig extends LovelaceCardConfig {
+  type: 'custom:bom-raster-radar-card' | 'custom:bom-radar-card';
 
   // General
   name?: string;

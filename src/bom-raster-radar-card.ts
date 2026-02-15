@@ -1,16 +1,16 @@
 import { LitElement, html, css, type CSSResultGroup, type TemplateResult, type PropertyValues } from 'lit';
 import { property, customElement } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCardEditor, LovelaceCard } from 'custom-card-helpers';
+import type { HomeAssistant, LovelaceCardEditor, LovelaceCard } from 'custom-card-helpers';
 
 import './editor';
 
-import { BomRadarCardConfig } from './types';
+import { BomRasterRadarCardConfig } from './types';
 import { CARD_VERSION } from './const';
 
 import * as L from 'leaflet';
 
 console.info(
-  `%c  BOM-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `,
+  `%c  BOM-RASTER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
@@ -68,13 +68,13 @@ declare global {
 
 window.customCards = window.customCards ?? [];
 window.customCards.push({
-  type: 'bom-radar-card',
-  name: 'BoM Radar Card',
+  type: 'bom-raster-radar-card',
+  name: 'BoM Raster Radar Card',
   description: 'A rain radar card using the Bureau of Meteorology WMTS radar imagery',
 });
 
-@customElement('bom-radar-card')
-export class BomRadarCard extends LitElement implements LovelaceCard {
+@customElement('bom-raster-radar-card')
+export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   static override styles: CSSResultGroup = css`
     #card {
       overflow: hidden;
@@ -135,7 +135,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       display: block;
       width: 30px;
       height: 30px;
-      background-image: url('/local/community/bom-radar-card/recenter.png');
+      background-image: url('/local/community/bom-raster-radar-card/recenter.png');
       background-repeat: no-repeat;
       background-position: center;
       background-size: 18px 18px;
@@ -148,7 +148,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   `;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
-    return document.createElement('bom-radar-card-editor') as LovelaceCardEditor;
+    return document.createElement('bom-raster-radar-card-editor') as LovelaceCardEditor;
   }
 
   public static getStubConfig(): Record<string, unknown> {
@@ -177,12 +177,12 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
 
   // Add any properities that should cause your element to re-render here
   @property({ attribute: false }) public hass!: HomeAssistant;
-  @property({ attribute: false }) private _config!: BomRadarCardConfig;
+  @property({ attribute: false }) private _config!: BomRasterRadarCardConfig;
   @property({ attribute: false }) public editMode?: boolean;
   @property({ attribute: false }) public mapLoaded = false;
   @property() currentTime = '';
 
-  public setConfig(config: BomRadarCardConfig): void {
+  public setConfig(config: BomRasterRadarCardConfig): void {
     this._config = config;
   }
 
@@ -254,7 +254,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
 
   private scheduleCapabilitiesRetry(): void {
     const delay = Math.min(5000 * Math.pow(2, this.capabilitiesRetryCount), 60000);
-    this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRadarCard.MAX_RETRY_COUNT);
+    this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRasterRadarCard.MAX_RETRY_COUNT);
     setTimeout(() => {
       this.getRadarCapabilities();
     }, delay);
@@ -400,8 +400,8 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
 
       // Marker
       const markerIconUrl = isDark
-        ? '/local/community/bom-radar-card/home-circle-light.svg'
-        : '/local/community/bom-radar-card/home-circle-dark.svg';
+        ? '/local/community/bom-raster-radar-card/home-circle-light.svg'
+        : '/local/community/bom-raster-radar-card/home-circle-dark.svg';
       const markerIcon = L.icon({
         iconUrl: markerIconUrl,
         iconSize: [15, 15],
@@ -592,10 +592,10 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       return true;
     }
 
-    const configKey = '_config' as keyof BomRadarCard;
+    const configKey = '_config' as keyof BomRasterRadarCard;
 
     if (changedProps.has(configKey)) {
-      const previousConfig = changedProps.get(configKey) as BomRadarCardConfig | undefined;
+      const previousConfig = changedProps.get(configKey) as BomRasterRadarCardConfig | undefined;
 
       if (previousConfig) {
         if (this._config.zoom_level !== previousConfig.zoom_level) {
@@ -719,7 +719,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
           <div id="color-bar">
             <img
               id="img-color-bar"
-              src="/local/community/bom-radar-card/radar-colour-bar.png"
+              src="/local/community/bom-raster-radar-card/radar-colour-bar.png"
               height="8"
               style="vertical-align: top"
             />
@@ -746,4 +746,8 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   private showWarning(warning: string): TemplateResult {
     return html` <hui-warning>${warning}</hui-warning> `;
   }
+}
+
+if (!customElements.get('bom-radar-card')) {
+  customElements.define('bom-radar-card', BomRasterRadarCard);
 }

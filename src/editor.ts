@@ -1,16 +1,16 @@
 import { LitElement, html, css, type CSSResultGroup } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
-import { HomeAssistant, LovelaceCardEditor, fireEvent } from 'custom-card-helpers';
+import type { HomeAssistant, LovelaceCardEditor } from 'custom-card-helpers';
 import type { TemplateResult } from 'lit';
-import { BomRadarCardConfig } from './types';
+import { BomRasterRadarCardConfig } from './types';
 
-@customElement('bom-radar-card-editor')
-export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor {
+@customElement('bom-raster-radar-card-editor')
+export class BomRasterRadarCardEditor extends LitElement implements LovelaceCardEditor {
   @property({ attribute: false }) public hass?: HomeAssistant;
-  @state() private _config: BomRadarCardConfig = this._mergeWithDefaults();
+  @state() private _config: BomRasterRadarCardConfig = this._mergeWithDefaults();
 
-  private _mergeWithDefaults(config: Partial<BomRadarCardConfig> = {}): BomRadarCardConfig {
-    const defaults: Partial<BomRadarCardConfig> = {
+  private _mergeWithDefaults(config: Partial<BomRasterRadarCardConfig> = {}): BomRasterRadarCardConfig {
+    const defaults: Partial<BomRasterRadarCardConfig> = {
       map_style: 'Light',
       zoom_level: 8,
       frame_count: 7,
@@ -26,11 +26,11 @@ export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor
     return {
       ...defaults,
       ...config,
-      type: 'custom:bom-radar-card',
-    } as BomRadarCardConfig;
+      type: 'custom:bom-raster-radar-card',
+    } as BomRasterRadarCardConfig;
   }
 
-  public setConfig(config: BomRadarCardConfig): void {
+  public setConfig(config: BomRasterRadarCardConfig): void {
     // Merge defaults so editor always has values to show
     this._config = this._mergeWithDefaults(config);
     this.requestUpdate();
@@ -66,18 +66,41 @@ export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor
     ];
 
     const location = [
-      { name: 'center_latitude',  selector: { text: { inputmode: 'decimal' } },  context: { domain: 'lat'  }, helper: '−90 to 90' },
-      { name: 'center_longitude', selector: { text: { inputmode: 'decimal' } },  context: { domain: 'lon'  }, helper: '−90 to 90' },
+      {
+        name: 'center_latitude',
+        selector: { text: { inputmode: 'decimal' } },
+        context: { domain: 'lat' },
+        helper: '−90 to 90',
+      },
+      {
+        name: 'center_longitude',
+        selector: { text: { inputmode: 'decimal' } },
+        context: { domain: 'lon' },
+        helper: '−90 to 90',
+      },
       { name: 'show_marker', selector: { boolean: {} } },
-      { name: 'marker_latitude',  selector: { text: { inputmode: 'decimal' } },  context: { domain: 'lat'  }, helper: '−90 to 90' },
-      { name: 'marker_longitude', selector: { text: { inputmode: 'decimal' } },  context: { domain: 'lon'  }, helper: '−90 to 90' },
+      {
+        name: 'marker_latitude',
+        selector: { text: { inputmode: 'decimal' } },
+        context: { domain: 'lat' },
+        helper: '−90 to 90',
+      },
+      {
+        name: 'marker_longitude',
+        selector: { text: { inputmode: 'decimal' } },
+        context: { domain: 'lon' },
+        helper: '−90 to 90',
+      },
     ];
 
     const animation = [
       { name: 'frame_count', selector: { number: { mode: 'box', min: 1, max: 60, step: 1 } } },
       { name: 'frame_delay', selector: { number: { mode: 'box', min: 0, max: 5000, step: 10 } } },
       { name: 'restart_delay', selector: { number: { mode: 'box', min: 0, max: 10000, step: 10 } } },
-      { name: 'overlay_transparency', selector: { number: { mode: 'slider', min: 0, max: 90, step: 5, unit_of_measurement: '%' } } },
+      {
+        name: 'overlay_transparency',
+        selector: { number: { mode: 'slider', min: 0, max: 90, step: 5, unit_of_measurement: '%' } },
+      },
     ];
 
     const controls = [
@@ -149,10 +172,7 @@ export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor
 
   // ---------- Change handling ----------
   private _onValueChanged(
-    ev: CustomEvent<
-      | { name: string; value: unknown }
-      | { value: Partial<BomRadarCardConfig> }
-    >,
+    ev: CustomEvent<{ name: string; value: unknown } | { value: Partial<BomRasterRadarCardConfig> }>,
   ): void {
     const detail = ev.detail;
     const current = this._config ?? this._mergeWithDefaults();
@@ -178,15 +198,17 @@ export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor
       return Math.max(-180, Math.min(180, numeric));
     };
 
-    const applyField = (
-      cfg: BomRadarCardConfig,
-      name: string,
-      raw: unknown,
-    ): BomRadarCardConfig => {
-      const mutable = { ...cfg } as BomRadarCardConfig & Record<string, unknown>;
+    const applyField = (cfg: BomRasterRadarCardConfig, name: string, raw: unknown): BomRasterRadarCardConfig => {
+      const mutable = { ...cfg } as BomRasterRadarCardConfig & Record<string, unknown>;
 
       let value: unknown = raw;
-      if (name === 'zoom_level' || name === 'frame_count' || name === 'frame_delay' || name === 'restart_delay' || name === 'overlay_transparency') {
+      if (
+        name === 'zoom_level' ||
+        name === 'frame_count' ||
+        name === 'frame_delay' ||
+        name === 'restart_delay' ||
+        name === 'overlay_transparency'
+      ) {
         value = toNumber(raw);
       } else if (name === 'center_latitude' || name === 'marker_latitude') {
         value = toLatitude(raw);
@@ -214,52 +236,64 @@ export class BomRadarCardEditor extends LitElement implements LovelaceCardEditor
       }
     }
 
-    merged.type = 'custom:bom-radar-card';
+    merged.type = 'custom:bom-raster-radar-card';
 
     this._config = merged;
-    fireEvent(this, 'config-changed', { config: this._config });
+    this.dispatchEvent(
+      new CustomEvent('config-changed', {
+        detail: { config: this._config },
+        bubbles: true,
+        composed: true,
+      }),
+    );
   }
 
-
-// ---------- Labels & helpers ----------
-private _computeLabel = (schema: { name: string }): string => {
-  const map: Record<string, string> = {
-    card_title: 'Card Title',
-    map_style: 'Map Style',
-    zoom_level: 'Zoom Level',
-    center_latitude: 'Map Centre Latitude',
-    center_longitude: 'Map Centre Longitude',
-    show_marker: 'Show Marker',
-    marker_latitude: 'Marker Latitude',
-    marker_longitude: 'Marker Longitude',
-    frame_count: 'Frame Count',
-    frame_delay: 'Frame Delay (ms)',
-    restart_delay: 'Restart Delay (ms)',
-    overlay_transparency: 'Overlay Transparency',
-    show_zoom: 'Show Zoom',
-    show_recenter: 'Show Recenter',
-    show_scale: 'Show Scale',
+  // ---------- Labels & helpers ----------
+  private _computeLabel = (schema: { name: string }): string => {
+    const map: Record<string, string> = {
+      card_title: 'Card Title',
+      map_style: 'Map Style',
+      zoom_level: 'Zoom Level',
+      center_latitude: 'Map Centre Latitude',
+      center_longitude: 'Map Centre Longitude',
+      show_marker: 'Show Marker',
+      marker_latitude: 'Marker Latitude',
+      marker_longitude: 'Marker Longitude',
+      frame_count: 'Frame Count',
+      frame_delay: 'Frame Delay (ms)',
+      restart_delay: 'Restart Delay (ms)',
+      overlay_transparency: 'Overlay Transparency',
+      show_zoom: 'Show Zoom',
+      show_recenter: 'Show Recenter',
+      show_scale: 'Show Scale',
+    };
+    return map[schema.name] ?? schema.name;
   };
-  return map[schema.name] ?? schema.name;
-};
 
-private _computeHelper = (schema: { name: string }): string | undefined => {
-  const help: Record<string, string> = {
-    map_style: 'Light uses BoM vector tiles - Dark uses Mapbox dark style',
-    zoom_level: 'Initial zoom from 3 to 10',
-    frame_count: 'How many frames in the loop',
-    frame_delay: 'Delay between frames',
-    restart_delay: 'Pause on the last frame before looping',
-    overlay_transparency: 'Reduce the radar fill opacity to reveal the map (0%–90%)',
-    show_recenter: 'Adds a control to jump back to your center and zoom',
+  private _computeHelper = (schema: { name: string }): string | undefined => {
+    const help: Record<string, string> = {
+      map_style: 'Light uses BoM vector tiles - Dark uses Mapbox dark style',
+      zoom_level: 'Initial zoom from 3 to 10',
+      frame_count: 'How many frames in the loop',
+      frame_delay: 'Delay between frames',
+      restart_delay: 'Pause on the last frame before looping',
+      overlay_transparency: 'Reduce the radar fill opacity to reveal the map (0%–90%)',
+      show_recenter: 'Adds a control to jump back to your center and zoom',
+    };
+    return help[schema.name];
   };
-  return help[schema.name];
-};
 
-// ---------- Styles ----------
-static styles: CSSResultGroup = css`
-  .editor { padding: 8px 16px; }
-  .section { margin: 12px 0; }
-  .section h3 { margin: 0 0 8px; font-weight: 600; }
+  // ---------- Styles ----------
+  static styles: CSSResultGroup = css`
+    .editor {
+      padding: 8px 16px;
+    }
+    .section {
+      margin: 12px 0;
+    }
+    .section h3 {
+      margin: 0 0 8px;
+      font-weight: 600;
+    }
   `;
 }
