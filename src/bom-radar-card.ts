@@ -937,10 +937,6 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   }
 
   private async waitForStableMapSize(container: HTMLElement): Promise<void> {
-    if (this.parentNode?.nodeName !== 'HUI-CARD-PREVIEW') {
-      return;
-    }
-
     const target = this.shadowRoot?.getElementById('map-wrap') ?? container;
 
     if (!target) {
@@ -948,28 +944,44 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       return;
     }
 
+    // Always wait for the container to have non-zero dimensions.
+    // Cards on hidden HA tabs can have 0x0 size at firstUpdated time,
+    // which causes Mapbox GL's projection matrix to be uninitialised
+    // and throws "Cannot read properties of undefined (reading '0')".
+    const maxWait = 5000;
+    const interval = 50;
+    let waited = 0;
+    while (waited < maxWait && (target.clientWidth === 0 || target.clientHeight === 0)) {
+      await this.sleep(interval);
+      waited += interval;
+    }
+
     if (!('ResizeObserver' in window)) {
       await this.sleep(200);
       return;
     }
 
-    await new Promise<void>((resolve) => {
-      let timeoutId = 0;
+    // In the card editor preview, the container resizes dynamically;
+    // wait until it stabilises before creating the map.
+    if (this.parentNode?.nodeName === 'HUI-CARD-PREVIEW') {
+      await new Promise<void>((resolve) => {
+        let timeoutId = 0;
 
-      const finish = () => {
-        window.clearTimeout(timeoutId);
-        observer.disconnect();
-        resolve();
-      };
+        const finish = () => {
+          window.clearTimeout(timeoutId);
+          observer.disconnect();
+          resolve();
+        };
 
-      const observer = new ResizeObserver(() => {
-        window.clearTimeout(timeoutId);
+        const observer = new ResizeObserver(() => {
+          window.clearTimeout(timeoutId);
+          timeoutId = window.setTimeout(finish, 150);
+        });
+
         timeoutId = window.setTimeout(finish, 150);
+        observer.observe(target);
       });
-
-      timeoutId = window.setTimeout(finish, 150);
-      observer.observe(target);
-    });
+    }
   }
 
   protected getRadarTimeString(date: string): string {
@@ -1233,6 +1245,12 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   public override connectedCallback(): void {
     super.connectedCallback();
     this.updateStyle(this);
+    // Trigger resize after the card is re-attached to the DOM (e.g. tab switch).
+    // Without this, the projection matrix can remain stale/uninitialised and
+    // any mouse interaction throws "Cannot read properties of undefined".
+    if (this.map) {
+      requestAnimationFrame(() => this.map?.resize());
+    }
   }
 
   public override disconnectedCallback(): void {

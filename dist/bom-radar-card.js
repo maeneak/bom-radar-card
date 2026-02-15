@@ -666,32 +666,44 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     }
     async waitForStableMapSize(container) {
         var _a, _b, _c;
-        if (((_a = this.parentNode) === null || _a === void 0 ? void 0 : _a.nodeName) !== 'HUI-CARD-PREVIEW') {
-            return;
-        }
-        const target = (_c = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById('map-wrap')) !== null && _c !== void 0 ? _c : container;
+        const target = (_b = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map-wrap')) !== null && _b !== void 0 ? _b : container;
         if (!target) {
             await this.sleep(200);
             return;
+        }
+        // Always wait for the container to have non-zero dimensions.
+        // Cards on hidden HA tabs can have 0x0 size at firstUpdated time,
+        // which causes Mapbox GL's projection matrix to be uninitialised
+        // and throws "Cannot read properties of undefined (reading '0')".
+        const maxWait = 5000;
+        const interval = 50;
+        let waited = 0;
+        while (waited < maxWait && (target.clientWidth === 0 || target.clientHeight === 0)) {
+            await this.sleep(interval);
+            waited += interval;
         }
         if (!('ResizeObserver' in window)) {
             await this.sleep(200);
             return;
         }
-        await new Promise((resolve) => {
-            let timeoutId = 0;
-            const finish = () => {
-                window.clearTimeout(timeoutId);
-                observer.disconnect();
-                resolve();
-            };
-            const observer = new ResizeObserver(() => {
-                window.clearTimeout(timeoutId);
+        // In the card editor preview, the container resizes dynamically;
+        // wait until it stabilises before creating the map.
+        if (((_c = this.parentNode) === null || _c === void 0 ? void 0 : _c.nodeName) === 'HUI-CARD-PREVIEW') {
+            await new Promise((resolve) => {
+                let timeoutId = 0;
+                const finish = () => {
+                    window.clearTimeout(timeoutId);
+                    observer.disconnect();
+                    resolve();
+                };
+                const observer = new ResizeObserver(() => {
+                    window.clearTimeout(timeoutId);
+                    timeoutId = window.setTimeout(finish, 150);
+                });
                 timeoutId = window.setTimeout(finish, 150);
+                observer.observe(target);
             });
-            timeoutId = window.setTimeout(finish, 150);
-            observer.observe(target);
-        });
+        }
     }
     getRadarTimeString(date) {
         const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -917,6 +929,12 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     connectedCallback() {
         super.connectedCallback();
         this.updateStyle(this);
+        // Trigger resize after the card is re-attached to the DOM (e.g. tab switch).
+        // Without this, the projection matrix can remain stale/uninitialised and
+        // any mouse interaction throws "Cannot read properties of undefined".
+        if (this.map) {
+            requestAnimationFrame(() => { var _a; return (_a = this.map) === null || _a === void 0 ? void 0 : _a.resize(); });
+        }
     }
     disconnectedCallback() {
         var _a;
