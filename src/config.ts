@@ -40,6 +40,7 @@ export const CONFIG_FORM_SCHEMA = [
     },
   },
   { name: 'card_title', selector: { text: {} } },
+  { name: 'hide_header', selector: { boolean: {} } },
   {
     name: 'map_style',
     selector: {
@@ -69,6 +70,7 @@ export const CONFIG_FORM_SCHEMA = [
 const CONFIG_FORM_LABELS: Record<string, string> = {
   entity: 'Tracker entity',
   card_title: 'Title',
+  hide_header: 'Hide header/title',
   map_style: 'Map style',
   zoom_level: 'Zoom level',
   show_marker: 'Show marker',
@@ -83,6 +85,7 @@ const CONFIG_FORM_LABELS: Record<string, string> = {
 
 const CONFIG_FORM_HELPERS: Record<string, string> = {
   entity: 'Used for initial center, live marker location, and marker icon.',
+  map_style: 'Light uses OpenStreetMap Standard. Dark uses CARTO Dark Matter (OSM-based).',
   frame_count: 'Number of radar frames shown in the animation loop.',
   overlay_transparency: '0% is fully opaque radar, 90% is highly transparent.',
 };
@@ -135,6 +138,7 @@ export const normalizeConfig = (
     type: CARD_TYPE,
     entity,
     card_title: typeof config.card_title === 'string' && config.card_title.trim().length > 0 ? config.card_title : undefined,
+    hide_header: config.hide_header === true,
     map_style: sanitizeMapStyle(config.map_style),
     zoom_level: zoom !== undefined ? clamp(Math.round(zoom), 3, 10) : DEFAULT_ZOOM_LEVEL,
     show_marker: config.show_marker !== false,
@@ -158,4 +162,3 @@ export const pickStubEntity = (hass?: HomeAssistant, entities?: string[]): strin
 
 export const getLegacyLocationKeys = (config: Record<string, unknown>): string[] =>
   LEGACY_LOCATION_KEYS.filter((key) => key in config);
-

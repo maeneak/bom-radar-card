@@ -38,28 +38,23 @@ export const cardStyles: CSSResultGroup = css`
   }
 
   .footer {
-    min-height: 32px;
+    min-height: 22px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 12px;
-    font-size: 12px;
+    justify-content: flex-start;
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1.2;
     color: var(--secondary-text-color);
     border-top: 1px solid var(--divider-color);
   }
 
-  .timestamp {
+  .footer-meta {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .attribution {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 100%;
   }
 
   .color-bar {
@@ -106,4 +101,3 @@ export const cardStyles: CSSResultGroup = css`
     background: var(--card-background-color);
   }
 `;
-

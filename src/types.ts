@@ -6,6 +6,7 @@ export interface BomRasterRadarCardConfig extends LovelaceCardConfig {
   type: 'custom:bom-raster-radar-card';
   entity: string;
   card_title?: string;
+  hide_header?: boolean;
   map_style?: BomMapStyle;
   zoom_level?: number;
 

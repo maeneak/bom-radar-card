@@ -33,7 +33,8 @@ A Home Assistant Lovelace custom card that shows animated rain radar frames (Rai
 | `type` | string | Yes | Card type | `custom:bom-raster-radar-card` |
 | `entity` | string | Yes | Tracker entity (`device_tracker.*` or `person.*`) | none |
 | `card_title` | string | No | Optional card header title | entity friendly name |
-| `map_style` | string | No | `Light` or `Dark` basemap | `Light` |
+| `hide_header` | boolean | No | Hide header/title area entirely | `false` |
+| `map_style` | string | No | `Light` = OpenStreetMap Standard, `Dark` = CARTO Dark Matter (OSM-based) | `Light` |
 | `zoom_level` | number | No | Initial zoom (3-10) | `8` |
 | `show_marker` | boolean | No | Show tracked marker | `true` |
 | `show_zoom` | boolean | No | Show zoom control | `true` |
@@ -50,6 +51,7 @@ A Home Assistant Lovelace custom card that shows animated rain radar frames (Rai
 type: custom:bom-raster-radar-card
 entity: device_tracker.pixel_phone
 card_title: Rain Radar
+hide_header: false
 map_style: Light
 zoom_level: 8
 frame_count: 7

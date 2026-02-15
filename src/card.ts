@@ -163,28 +163,42 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
 
   protected override render(): TemplateResult {
     const header = this.resolveHeader();
-    return html`
-      <ha-card .header=${header}>
-        <div class="card-root">
-          <img class="color-bar" src=${RADAR_COLOR_BAR_URL} alt="Radar intensity scale" />
-          <div class="map-wrap">
-            <div id="map" class="map"></div>
-          </div>
-          <div class="progress-track">
-            <div class="progress-bar" style=${`width: ${this.progressPercent}%;`}></div>
-          </div>
-          <div class="footer">
-            <span class="timestamp">${this.timestampLabel}</span>
-            <span class="attribution">Radar: RainViewer</span>
-          </div>
+    const body = html`
+      <div class="card-root">
+        <img class="color-bar" src=${RADAR_COLOR_BAR_URL} alt="Radar intensity scale" />
+        <div class="map-wrap">
+          <div id="map" class="map"></div>
         </div>
+        <div class="progress-track">
+          <div class="progress-bar" style=${`width: ${this.progressPercent}%;`}></div>
+        </div>
+        <div class="footer">
+          <span class="footer-meta">${this.timestampLabel} · RainViewer</span>
+        </div>
+      </div>
+    `;
+
+    if (header !== undefined) {
+      return html`
+        <ha-card .header=${header}>
+          ${body}
+        </ha-card>
+      `;
+    }
+
+    return html`
+      <ha-card>
+        ${body}
       </ha-card>
     `;
   }
 
-  private resolveHeader(): string {
+  private resolveHeader(): string | undefined {
     if (!this._config) {
       return 'BoM Radar';
+    }
+    if (this._config.hide_header) {
+      return undefined;
     }
     if (this._config.card_title) {
       return this._config.card_title;

@@ -9,8 +9,14 @@ describe('normalizeConfig', () => {
     expect(config.type).toBe('custom:bom-raster-radar-card');
     expect(config.map_style).toBe('Light');
     expect(config.zoom_level).toBe(8);
+    expect(config.hide_header).toBe(false);
     expect(config.show_marker).toBe(true);
     expect(config.frame_count).toBe(7);
+  });
+
+  it('supports hiding the header', () => {
+    const config = normalizeConfig({ entity: 'device_tracker.phone', hide_header: true }, { requireEntity: true });
+    expect(config.hide_header).toBe(true);
   });
 
   it('clamps invalid numeric values', () => {
@@ -59,4 +65,3 @@ describe('legacy keys + grid options', () => {
     });
   });
 });
-

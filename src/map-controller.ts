@@ -43,8 +43,33 @@ export interface MapControllerOptions {
   onRecenter: () => void;
 }
 
+interface BaseLayerConfig {
+  tileUrl: string;
+  maxZoom: number;
+  attribution: string;
+  subdomains?: string;
+}
+
 const escapeHtml = (value: string): string =>
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+
+const getBaseLayerConfig = (style: BomMapStyle): BaseLayerConfig => {
+  if (style === 'Dark') {
+    return {
+      tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      maxZoom: 20,
+      subdomains: 'abcd',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    };
+  }
+
+  return {
+    tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  };
+};
 
 export class MapController {
   private readonly map: L.Map;
@@ -86,20 +111,16 @@ export class MapController {
   }
 
   public setMapStyle(style: BomMapStyle): void {
-    const tileUrl =
-      style === 'Dark'
-        ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-        : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+    const baseLayerConfig = getBaseLayerConfig(style);
 
     if (this.baseLayer) {
       this.map.removeLayer(this.baseLayer);
     }
 
-    this.baseLayer = L.tileLayer(tileUrl, {
-      subdomains: 'abcd',
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    this.baseLayer = L.tileLayer(baseLayerConfig.tileUrl, {
+      maxZoom: baseLayerConfig.maxZoom,
+      attribution: baseLayerConfig.attribution,
+      subdomains: baseLayerConfig.subdomains,
     });
     this.baseLayer.addTo(this.map);
   }
@@ -183,4 +204,3 @@ export class MapController {
     this.map.remove();
   }
 }
-

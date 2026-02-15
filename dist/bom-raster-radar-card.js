@@ -106,6 +106,7 @@ const CONFIG_FORM_SCHEMA = [
         },
     },
     { name: 'card_title', selector: { text: {} } },
+    { name: 'hide_header', selector: { boolean: {} } },
     {
         name: 'map_style',
         selector: {
@@ -134,6 +135,7 @@ const CONFIG_FORM_SCHEMA = [
 const CONFIG_FORM_LABELS = {
     entity: 'Tracker entity',
     card_title: 'Title',
+    hide_header: 'Hide header/title',
     map_style: 'Map style',
     zoom_level: 'Zoom level',
     show_marker: 'Show marker',
@@ -147,6 +149,7 @@ const CONFIG_FORM_LABELS = {
 };
 const CONFIG_FORM_HELPERS = {
     entity: 'Used for initial center, live marker location, and marker icon.',
+    map_style: 'Light uses OpenStreetMap Standard. Dark uses CARTO Dark Matter (OSM-based).',
     frame_count: 'Number of radar frames shown in the animation loop.',
     overlay_transparency: '0% is fully opaque radar, 90% is highly transparent.',
 };
@@ -184,6 +187,7 @@ const normalizeConfig = (config, options = {}) => {
         type: CARD_TYPE,
         entity,
         card_title: typeof config.card_title === 'string' && config.card_title.trim().length > 0 ? config.card_title : undefined,
+        hide_header: config.hide_header === true,
         map_style: sanitizeMapStyle(config.map_style),
         zoom_level: zoom !== undefined ? clamp(Math.round(zoom), 3, 10) : DEFAULT_ZOOM_LEVEL,
         show_marker: config.show_marker !== false,
@@ -14823,6 +14827,21 @@ class RecenterControl extends leafletSrcExports.Control {
     }
 }
 const escapeHtml = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+const getBaseLayerConfig = (style) => {
+    if (style === 'Dark') {
+        return {
+            tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+            maxZoom: 20,
+            subdomains: 'abcd',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        };
+    }
+    return {
+        tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    };
+};
 class MapController {
     constructor(options) {
         this.options = options;
@@ -14855,16 +14874,14 @@ class MapController {
         }
     }
     setMapStyle(style) {
-        const tileUrl = style === 'Dark'
-            ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-            : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+        const baseLayerConfig = getBaseLayerConfig(style);
         if (this.baseLayer) {
             this.map.removeLayer(this.baseLayer);
         }
-        this.baseLayer = leafletSrcExports.tileLayer(tileUrl, {
-            subdomains: 'abcd',
-            maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        this.baseLayer = leafletSrcExports.tileLayer(baseLayerConfig.tileUrl, {
+            maxZoom: baseLayerConfig.maxZoom,
+            attribution: baseLayerConfig.attribution,
+            subdomains: baseLayerConfig.subdomains,
         });
         this.baseLayer.addTo(this.map);
     }
@@ -15025,28 +15042,23 @@ const cardStyles = i$3 `
   }
 
   .footer {
-    min-height: 32px;
+    min-height: 22px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 12px;
-    font-size: 12px;
+    justify-content: flex-start;
+    padding: 4px 8px;
+    font-size: 11px;
+    line-height: 1.2;
     color: var(--secondary-text-color);
     border-top: 1px solid var(--divider-color);
   }
 
-  .timestamp {
+  .footer-meta {
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .attribution {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: 100%;
   }
 
   .color-bar {
@@ -15181,27 +15193,39 @@ let BomRasterRadarCard = class BomRasterRadarCard extends i {
     }
     render() {
         const header = this.resolveHeader();
-        return b `
-      <ha-card .header=${header}>
-        <div class="card-root">
-          <img class="color-bar" src=${RADAR_COLOR_BAR_URL} alt="Radar intensity scale" />
-          <div class="map-wrap">
-            <div id="map" class="map"></div>
-          </div>
-          <div class="progress-track">
-            <div class="progress-bar" style=${`width: ${this.progressPercent}%;`}></div>
-          </div>
-          <div class="footer">
-            <span class="timestamp">${this.timestampLabel}</span>
-            <span class="attribution">Radar: RainViewer</span>
-          </div>
+        const body = b `
+      <div class="card-root">
+        <img class="color-bar" src=${RADAR_COLOR_BAR_URL} alt="Radar intensity scale" />
+        <div class="map-wrap">
+          <div id="map" class="map"></div>
         </div>
+        <div class="progress-track">
+          <div class="progress-bar" style=${`width: ${this.progressPercent}%;`}></div>
+        </div>
+        <div class="footer">
+          <span class="footer-meta">${this.timestampLabel} · RainViewer</span>
+        </div>
+      </div>
+    `;
+        if (header !== undefined) {
+            return b `
+        <ha-card .header=${header}>
+          ${body}
+        </ha-card>
+      `;
+        }
+        return b `
+      <ha-card>
+        ${body}
       </ha-card>
     `;
     }
     resolveHeader() {
         if (!this._config) {
             return 'BoM Radar';
+        }
+        if (this._config.hide_header) {
+            return undefined;
         }
         if (this._config.card_title) {
             return this._config.card_title;
