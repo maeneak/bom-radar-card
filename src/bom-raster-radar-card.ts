@@ -15,42 +15,11 @@ console.info(
   'color: white; font-weight: bold; background: dimgray',
 );
 
-/* ── BOM WMTS KVP constants ── */
-const WMTS_KVP_BASE = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts';
-const WMTS_LAYER = 'atm_surf_air_precip_reflectivity_dbz';
-const WMTS_TILE_MATRIX_SET = 'GoogleMapsCompatible_BoM';
-const EARTH_HALF_CIRCUMFERENCE = 20037508.342789244;
-
-/**
- * BOM's custom TileMatrixSet definition (from WMTSCapabilities.xml).
- * Each zoom level has a custom origin and grid size that does NOT align
- * with the standard GoogleMapsCompatible tile grid.
- */
-const BOM_TILE_MATRICES: Record<number, { originX: number; originY: number; cols: number; rows: number }> = {
-  0: { originX: 11584952, originY: 34168990.685578, cols: 1, rows: 1 },
-  1: { originX: 11584952, originY: 14131482.342789, cols: 1, rows: 1 },
-  2: { originX: 11584952, originY: 4112728.171395, cols: 1, rows: 1 },
-  3: { originX: 11584952, originY: 4112728.171395, cols: 2, rows: 2 },
-  4: { originX: 11584952, originY: 1608039.628546, cols: 3, rows: 3 },
-  5: { originX: 11584952, originY: 355695.357122, cols: 6, rows: 5 },
-  6: { originX: 11584952, originY: -270476.778591, cols: 11, rows: 9 },
-  7: { originX: 11584952, originY: -583562.846447, cols: 22, rows: 17 },
-  8: { originX: 11584952, originY: -740105.880375, cols: 43, rows: 33 },
-};
-
-function getTileSpan(z: number): number {
-  return (2 * EARTH_HALF_CIRCUMFERENCE) / Math.pow(2, z);
-}
-
-function bomKvpUrl(z: number, row: number, col: number, time: string): string {
-  return (
-    `${WMTS_KVP_BASE}?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0` +
-    `&LAYER=${WMTS_LAYER}&STYLE=default&FORMAT=image/png` +
-    `&TILEMATRIXSET=${WMTS_TILE_MATRIX_SET}` +
-    `&TILEMATRIX=${z}&TILEROW=${row}&TILECOL=${col}` +
-    `&TIME=${encodeURIComponent(time)}`
-  );
-}
+/* ── RainViewer API constants ── */
+const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+const RAINVIEWER_COLOR_SCHEME = 2; // rainbow
+const RAINVIEWER_SMOOTH = 1;
+const RAINVIEWER_SNOW = 0;
 
 /** Custom Leaflet control – Recenter button */
 class RecenterControl extends L.Control {
@@ -87,96 +56,6 @@ class RecenterControl extends L.Control {
   }
 }
 
-/**
- * Custom Leaflet GridLayer that renders BOM WMTS radar tiles.
- * BOM uses a non-standard tile grid (GoogleMapsCompatible_BoM) whose origin
- * does NOT align with standard web tiles. This layer computes the correct
- * BOM tile coordinates for each Leaflet tile position and positions them
- * with sub-tile pixel precision using absolutely-positioned <img> elements.
- * The BOM RESTful tile URL returns 404, so we use KVP (query-parameter)
- * encoding which works correctly.
- */
-class BomRadarGridLayer extends L.GridLayer {
-  private _timestamp: string;
-
-  constructor(timestamp: string, options?: L.GridLayerOptions) {
-    super(options);
-    this._timestamp = timestamp;
-  }
-
-  override createTile(coords: L.Coords, done: L.DoneCallback): HTMLElement {
-    const tile = document.createElement('div');
-    tile.style.width = '256px';
-    tile.style.height = '256px';
-    tile.style.overflow = 'hidden';
-    tile.style.position = 'relative';
-
-    const z = coords.z;
-    const tm = BOM_TILE_MATRICES[z];
-    if (!tm) {
-      setTimeout(() => done(undefined, tile), 0);
-      return tile;
-    }
-
-    const tileSpan = getTileSpan(z);
-
-    // EPSG:3857 bounds of this Leaflet tile
-    const leafMinX = -EARTH_HALF_CIRCUMFERENCE + coords.x * tileSpan;
-    const leafMaxX = leafMinX + tileSpan;
-    const leafMaxY = EARTH_HALF_CIRCUMFERENCE - coords.y * tileSpan;
-    const leafMinY = leafMaxY - tileSpan;
-
-    // Find overlapping BOM tiles (BOM grid uses a different origin)
-    const firstCol = Math.floor((leafMinX - tm.originX) / tileSpan);
-    const lastCol = Math.floor((leafMaxX - tm.originX - 0.01) / tileSpan);
-    const firstRow = Math.floor((tm.originY - leafMaxY) / tileSpan);
-    const lastRow = Math.floor((tm.originY - leafMinY - 0.01) / tileSpan);
-
-    let pendingImages = 0;
-    let hadValidTiles = false;
-
-    for (let row = Math.max(0, firstRow); row <= Math.min(tm.rows - 1, lastRow); row++) {
-      for (let col = Math.max(0, firstCol); col <= Math.min(tm.cols - 1, lastCol); col++) {
-        hadValidTiles = true;
-        pendingImages++;
-
-        // EPSG:3857 origin of this BOM tile
-        const bomMinX = tm.originX + col * tileSpan;
-        const bomMaxY = tm.originY - row * tileSpan;
-
-        // Pixel offset: where this BOM tile sits within the Leaflet tile
-        const offsetX = Math.round(((bomMinX - leafMinX) / tileSpan) * 256);
-        const offsetY = Math.round(((leafMaxY - bomMaxY) / tileSpan) * 256);
-
-        const img = document.createElement('img');
-        img.src = bomKvpUrl(z, row, col, this._timestamp);
-        img.style.position = 'absolute';
-        img.style.left = `${offsetX}px`;
-        img.style.top = `${offsetY}px`;
-        img.style.width = '256px';
-        img.style.height = '256px';
-
-        img.onload = () => {
-          pendingImages--;
-          if (pendingImages === 0) done(undefined, tile);
-        };
-        img.onerror = () => {
-          pendingImages--;
-          if (pendingImages === 0) done(undefined, tile);
-        };
-
-        tile.appendChild(img);
-      }
-    }
-
-    if (!hadValidTiles) {
-      setTimeout(() => done(undefined, tile), 0);
-    }
-
-    return tile;
-  }
-}
-
 type LovelaceCustomCard = {
   type: string;
   name: string;
@@ -194,7 +73,7 @@ window.customCards = window.customCards ?? [];
 window.customCards.push({
   type: 'bom-raster-radar-card',
   name: 'BoM Raster Radar Card',
-  description: 'A rain radar card using the Bureau of Meteorology WMTS radar imagery',
+  description: 'A rain radar card using RainViewer composite radar imagery',
 });
 
 @customElement('bom-raster-radar-card')
@@ -287,8 +166,10 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   private frame_delay = 250;
   private restart_delay = 1000;
   private mapLayers: string[] = [];
-  private radarTileLayers: Map<string, L.GridLayer> = new Map();
+  private radarTileLayers: Map<string, L.TileLayer> = new Map();
   private radarTime: string[] = [];
+  private pathForTimestamp: Map<string, string> = new Map();
+  private rainviewerHost = 'https://tilecache.rainviewer.com';
   private frame = 0;
   private frameTimer: ReturnType<typeof setInterval> | undefined;
   private barsize = 0;
@@ -320,41 +201,45 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   private availableTimestamps: string[] = [];
 
   /**
-   * Compute radar timestamps from current time.
-   * BOM publishes radar tiles every 5 minutes. We round down to the nearest
-   * 5-minute mark and generate frame_count timestamps going backwards.
-   * The WMTS capabilities XML is CORS-blocked from external domains,
-   * so we compute timestamps client-side instead of fetching them.
+   * Fetch radar timestamps from RainViewer's public API.
+   * Returns past 2 hours of composite radar frames at 10-minute intervals.
+   * RainViewer serves tiles with CORS enabled (Access-Control-Allow-Origin: *),
+   * so no proxy or workaround is needed.
    */
   async getRadarCapabilities(): Promise<number> {
     try {
-      // Round current time down to nearest 5-minute interval
-      // Subtract 5 minutes to ensure the latest tile has been published
-      const now = Date.now() - 5 * 60 * 1000;
-      const latestMs = Math.floor(now / (5 * 60 * 1000)) * (5 * 60 * 1000);
-      const latest = this.formatWmtsTimestamp(new Date(latestMs));
+      const response = await fetch(RAINVIEWER_API);
+      if (!response.ok) throw new Error(`RainViewer API returned ${response.status}`);
+      const data = await response.json();
 
-      // Generate enough timestamps to cover max possible frame_count (default 12, plus buffer)
-      const count = Math.max(this.frame_count, 12) + 4;
+      this.rainviewerHost = data.host || this.rainviewerHost;
+      const pastFrames: { time: number; path: string }[] = data.radar?.past ?? [];
+      if (pastFrames.length === 0) throw new Error('No radar frames available');
+
+      // Build timestamp → path mapping
+      this.pathForTimestamp.clear();
       const timestamps: string[] = [];
-      for (let i = 0; i < count; i++) {
-        const t = latestMs - i * 5 * 60 * 1000;
-        timestamps.unshift(this.formatWmtsTimestamp(new Date(t)));
+      for (const frame of pastFrames) {
+        const isoString = new Date(frame.time * 1000).toISOString();
+        timestamps.push(isoString);
+        this.pathForTimestamp.set(isoString, frame.path);
       }
       this.availableTimestamps = timestamps;
 
-      const newTime = latest;
+      const latest = pastFrames[pastFrames.length - 1];
+      const latestMs = latest.time * 1000;
+      const newTime = new Date(latestMs).toISOString();
+
       if (this.currentTime === newTime) {
         this.scheduleCapabilitiesRetry();
-        return Date.parse(latest);
+        return latestMs;
       }
 
       this.capabilitiesRetryCount = 0;
       this.currentTime = newTime;
 
-      const t = Date.parse(latest);
-      this.setNextUpdateTimeout(t);
-      return t;
+      this.setNextUpdateTimeout(latestMs);
+      return latestMs;
     } catch (err) {
       console.error('Error computing radar timestamps:', err);
       this.scheduleCapabilitiesRetry();
@@ -368,12 +253,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
    * (e.g. T10:20:00Z) return 404.
    */
   private formatWmtsTimestamp(date: Date): string {
-    const y = date.getUTCFullYear();
-    const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
-    const h = String(date.getUTCHours()).padStart(2, '0');
-    const mi = String(date.getUTCMinutes()).padStart(2, '0');
-    return `${y}-${mo}-${d}T${h}:${mi}:00Z`;
+    return date.toISOString();
   }
 
   private scheduleCapabilitiesRetry(): void {
@@ -490,7 +370,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
     this.frame_delay = this._config.frame_delay !== undefined ? this._config.frame_delay : this.frame_delay;
     this.restart_delay = this._config.restart_delay !== undefined ? this._config.restart_delay : this.restart_delay;
     this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
-    this.start_time = t - (this.frame_count - 1) * 5 * 60 * 1000;
+    this.start_time = t - (this.frame_count - 1) * 10 * 60 * 1000;
 
     const container = this.shadowRoot?.getElementById('map');
     const isDark = this._config.map_style === 'Dark';
@@ -619,10 +499,14 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
 
   protected addRadarLayer(id: string) {
     if (this.map && id !== '' && this.mapLoaded) {
-      const layer = new BomRadarGridLayer(id, {
+      const path = this.pathForTimestamp.get(id);
+      if (!path) return;
+
+      const tileUrl = `${this.rainviewerHost}${path}/256/{z}/{x}/{y}/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_SMOOTH}_${RAINVIEWER_SNOW}.png`;
+      const layer = L.tileLayer(tileUrl, {
         opacity: 0,
         tileSize: 256,
-        maxNativeZoom: 8,
+        maxNativeZoom: 7,
         maxZoom: 10,
       });
       layer.addTo(this.map);
@@ -655,7 +539,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   private generateTimestamps(): string[] {
     const timestamps: string[] = [];
     for (let i = 0; i < this.frame_count; i++) {
-      const time = this.start_time + i * 5 * 60 * 1000;
+      const time = this.start_time + i * 10 * 60 * 1000;
       timestamps.push(this.formatWmtsTimestamp(new Date(time)));
     }
     return timestamps;
