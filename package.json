@@ -16,44 +16,29 @@
   "license": "MIT",
   "dependencies": {
     "custom-card-helpers": "^1.9.0",
-    "home-assistant-js-websocket": "^5.12.0",
+    "leaflet": "^1.9.4",
     "lit": "^3.1.2",
-    "randombytes": "^2.1.0",
-    "safe-buffer": "^5.2.1",
-    "serialize-javascript": "^6.0.2",
-    "tslib": "^2.6.2",
-    "tsutils": "^3.21.0"
+    "tslib": "^2.6.2"
   },
   "devDependencies": {
-    "@babel/core": "^7.23.7",
-    "@babel/plugin-proposal-class-properties": "^7.18.6",
-    "@babel/plugin-proposal-decorators": "^7.23.7",
-    "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^24.1.0",
     "@rollup/plugin-json": "^4.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/geojson": "^7946.0.13",
-    "@types/mapbox-gl": "^2.7.19",
+    "@types/leaflet": "^1.9.8",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "css-loader": "^6.9.0",
     "eslint": "^7.32.0",
-    "eslint-config-airbnb-base": "^14.2.1",
-    "eslint-config-prettier": "^8.10.0",
-    "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-prettier": "^4.2.1",
-    "mapbox-gl": "^2.15.0",
     "prettier": "^2.8.8",
     "rollup": "^2.79.1",
     "rollup-plugin-copy": "^3.5.0",
-    "rollup-plugin-serve": "^1.1.1",
-    "typescript": "~5.3.3",
-    "typescript-plugin-css-modules": "^5.0.2"
+    "typescript": "~5.3.3"
   },
   "scripts": {
     "start": "rollup -c rollup.config.ci.js --watch",
-    "build": "NODE_ENV=production ROLLUP_WATCH=false rollup -c rollup.config.ci.js",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && rollup -c rollup.config.ci.js",
     "lint": "node scripts/lint.cjs src/*.ts",
     "rollup": "rollup -c"
   }

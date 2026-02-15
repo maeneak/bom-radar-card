@@ -7,7 +7,7 @@ import './editor';
 import { BomRadarCardConfig } from './types';
 import { CARD_VERSION } from './const';
 
-import * as mapboxgl from 'mapbox-gl';
+import * as L from 'leaflet';
 
 console.info(
   `%c  BOM-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `,
@@ -15,43 +15,41 @@ console.info(
   'color: white; font-weight: bold; background: dimgray',
 );
 
-const wmtsTileBase = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default';
+const wmtsTileBase =
+  'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default';
 
-class RecenterControl implements mapboxgl.IControl {
-  private container?: HTMLElement;
+/** Custom Leaflet control – Recenter button */
+class RecenterControl extends L.Control {
+  private _getCenter: () => L.LatLngExpression;
+  private _getZoom: () => number;
+  private _mapRef?: L.Map;
 
-  private map?: mapboxgl.Map;
+  constructor(getCenter: () => L.LatLngExpression, getZoom: () => number, options?: L.ControlOptions) {
+    super(options);
+    this._getCenter = getCenter;
+    this._getZoom = getZoom;
+  }
 
-  constructor(
-    private readonly getCenter: () => mapboxgl.LngLatLike,
-    private readonly getZoom: () => number,
-  ) {}
-
-  onAdd(map: mapboxgl.Map): HTMLElement {
-    this.map = map;
-    const container = document.createElement('div');
-    container.className = 'mapboxgl-ctrl mapboxgl-ctrl-group';
-
-    const button = document.createElement('button');
-    button.type = 'button';
+  override onAdd(map: L.Map): HTMLElement {
+    this._mapRef = map;
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+    const button = L.DomUtil.create('a', 'recenter-btn', container) as HTMLAnchorElement;
+    button.href = '#';
     button.title = 'Recenter map';
-    button.classList.add('mapboxgl-ctrl-icon', 'recenter-btn');
-    button.addEventListener('click', () => {
-      this.map?.jumpTo({
-        center: this.getCenter(),
-        zoom: this.getZoom(),
-      });
+    button.role = 'button';
+    button.setAttribute('aria-label', 'Recenter map');
+
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.on(button, 'click', (e) => {
+      L.DomEvent.preventDefault(e);
+      this._mapRef?.setView(this._getCenter(), this._getZoom());
     });
 
-    container.appendChild(button);
-    this.container = container;
     return container;
   }
 
-  onRemove(): void {
-    this.container?.remove();
-    this.container = undefined;
-    this.map = undefined;
+  override onRemove(): void {
+    this._mapRef = undefined;
   }
 }
 
@@ -78,543 +76,76 @@ window.customCards.push({
 @customElement('bom-radar-card')
 export class BomRadarCard extends LitElement implements LovelaceCard {
   static override styles: CSSResultGroup = css`
-      #card {
-        overflow: hidden;
-      }
-      .text-container {
-        font: 14px/1.5 'Helvetica Neue', Arial, Helvetica, sans-serif;
-        color: var(--bottom-container-color);
-        padding-left: 10px;
-        margin: 0;
-        position: static;
-        width: auto;
-      }
-      #root {
-        width: 100%;
-        position: relative;
-      }
-      #map-wrap {
-        width: 100%;
-        height: auto;
-        aspect-ratio: 1 / 1;
-        position: relative;
-        display: block;
-        box-sizing: border-box;
-        overflow: hidden;
-      }
-      #map {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-      }
-      iframe {
-        position: absolute;
-        border: none;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        left: 0;
-      }
-      #card-title {
-        margin: 8px 0px 4px 8px;
-        font-size: 1.5em;
-      }
-      #color-bar {
-        height: 8px;
-      }
-      #div-progress-bar {
-        height: 8px;
-        background-color: var(--progress-bar-background);
-      }
-      #progress-bar {
-        height: 8px;
-        width: 0;
-        background-color: var(--progress-bar-color);
-      }
-      #bottom-container {
-        min-height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        background-color: var(--bottom-container-background);
-        padding: 2px 8px;
-        box-sizing: border-box;
-      }
-      .mapboxgl-map {
-        font: 12px/20px "Helvetica Neue", Arial, Helvetica, sans-serif;
-        overflow: hidden;
-        position: relative;
-        -webkit-tap-highlight-color: rgb(0 0 0 / 0%);
-      }
-
-      .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-in .mapboxgl-ctrl-icon {
-        background-image: url('/local/community/bom-radar-card/zoom-in.svg');
-      }
-
-      .mapboxgl-ctrl button.mapboxgl-ctrl-zoom-out .mapboxgl-ctrl-icon {
-        background-image: url('/local/community/bom-radar-card/zoom-out.svg');
-      }
-
-      .mapboxgl-ctrl button.mapboxgl-ctrl-compass .mapboxgl-ctrl-icon {
-        background-image: url('/local/community/bom-radar-card/compass.svg');
-      }
-
-      .recenter-btn.mapboxgl-ctrl-icon {
-        background-image: url('/local/community/bom-radar-card/recenter.png');
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: 18px 18px;
-      }
-
-      .mapboxgl-canvas,
-      .mapboxgl-canvas-container {
-        width: 100% !important;
-        height: 100% !important;
+    #card {
+      overflow: hidden;
     }
-
-      .mapboxgl-map:-webkit-full-screen {
-        width: 100%;
-        height: 100%;
-      }
-
-      .mapboxgl-canary {
-        background-color: salmon;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-interactive,
-      .mapboxgl-ctrl-group button.mapboxgl-ctrl-compass {
-        cursor: grab;
-        -webkit-user-select: none;
-        user-select: none;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-interactive.mapboxgl-track-pointer {
-        cursor: pointer;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-interactive:active,
-      .mapboxgl-ctrl-group button.mapboxgl-ctrl-compass:active {
-        cursor: grabbing;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate,
-      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate .mapboxgl-canvas {
-        touch-action: pan-x pan-y;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-touch-drag-pan,
-      .mapboxgl-canvas-container.mapboxgl-touch-drag-pan .mapboxgl-canvas {
-        touch-action: pinch-zoom;
-      }
-
-      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan,
-      .mapboxgl-canvas-container.mapboxgl-touch-zoom-rotate.mapboxgl-touch-drag-pan .mapboxgl-canvas {
-        touch-action: none;
-      }
-
-      .mapboxgl-ctrl-top-left,
-      .mapboxgl-ctrl-top-right,
-      .mapboxgl-ctrl-bottom-left,
-      .mapboxgl-ctrl-bottom-right { position: absolute; pointer-events: none; z-index: 2; }
-      .mapboxgl-ctrl-top-left     { top: 0; left: 0; }
-      .mapboxgl-ctrl-top-right    { top: 0; right: 0; }
-      .mapboxgl-ctrl-bottom-left  { bottom: 0; left: 0; }
-      .mapboxgl-ctrl-bottom-right { right: 0; bottom: 0; }
-
-      .mapboxgl-ctrl {
-        clear: both;
-        pointer-events: auto;
-
-        /* workaround for a Safari bug https://github.com/mapbox/mapbox-gl-js/issues/8185 */
-        transform: translate(0, 0);
-      }
-      .mapboxgl-ctrl-top-left .mapboxgl-ctrl     { margin: 10px 0 0 10px; float: left; }
-      .mapboxgl-ctrl-top-right .mapboxgl-ctrl    { margin: 10px 10px 0 0; float: right; }
-      .mapboxgl-ctrl-bottom-left .mapboxgl-ctrl  { margin: 0 0 10px 10px; float: left; }
-      .mapboxgl-ctrl-bottom-right .mapboxgl-ctrl { margin: 0 10px 10px 0; float: right; }
-
-      .mapboxgl-ctrl-group {
-        border-radius: 4px;
-        background: #fff;
-      }
-
-      .mapboxgl-ctrl-group:not(:empty) {
-        box-shadow: 0 0 0 2px rgb(0 0 0 / 10%);
-      }
-
-      @media (-ms-high-contrast: active) {
-        .mapboxgl-ctrl-group:not(:empty) {
-          box-shadow: 0 0 0 2px ButtonText;
-        }
-      }
-
-      .mapboxgl-ctrl-group button {
-        width: 29px;
-        height: 29px;
-        display: block;
-        padding: 0;
-        outline: none;
-        border: 0;
-        box-sizing: border-box;
-        background-color: transparent;
-        cursor: pointer;
-        overflow: hidden;
-      }
-
-      .mapboxgl-ctrl-group button + button {
-        border-top: 1px solid #ddd;
-      }
-
-      .mapboxgl-ctrl button .mapboxgl-ctrl-icon {
-        display: block;
-        width: 100%;
-        height: 100%;
-        background-repeat: no-repeat;
-        background-position: center center;
-      }
-
-      .mapboxgl-ctrl-attrib-button:focus,
-      .mapboxgl-ctrl-group button:focus {
-        box-shadow: 0 0 2px 2px rgb(0 150 255 / 100%);
-      }
-
-      .mapboxgl-ctrl button:disabled {
-        cursor: not-allowed;
-      }
-
-      .mapboxgl-ctrl button:disabled .mapboxgl-ctrl-icon {
-        opacity: 0.25;
-      }
-
-      .mapboxgl-ctrl-group button:first-child {
-        border-radius: 4px 4px 0 0;
-      }
-
-      .mapboxgl-ctrl-group button:last-child {
-        border-radius: 0 0 4px 4px;
-      }
-
-      .mapboxgl-ctrl-group button:only-child {
-        border-radius: inherit;
-      }
-
-      .mapboxgl-ctrl button:not(:disabled):hover {
-        background-color: rgb(0 0 0 / 5%);
-      }
-
-      .mapboxgl-ctrl-group button:focus:focus-visible {
-        box-shadow: 0 0 2px 2px rgb(0 150 255 / 100%);
-      }
-
-      .mapboxgl-ctrl-group button:focus:not(:focus-visible) {
-        box-shadow: none;
-      }
-
-      @keyframes mapboxgl-spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-
-      .mapboxgl-ctrl-scale {
-        background-color: rgb(255 255 255 / 75%);
-        font-size: 10px;
-        border-width: medium 2px 2px;
-        border-style: none solid solid;
-        border-color: #333;
-        padding: 0 5px;
-        color: #333;
-        box-sizing: border-box;
-        white-space: nowrap;
-      }
-
-      .mapboxgl-popup {
-        position: absolute;
-        top: 0;
-        left: 0;
-        display: flex;
-        will-change: transform;
-        pointer-events: none;
-      }
-
-      .mapboxgl-popup-anchor-top,
-      .mapboxgl-popup-anchor-top-left,
-      .mapboxgl-popup-anchor-top-right {
-        flex-direction: column;
-      }
-
-      .mapboxgl-popup-anchor-bottom,
-      .mapboxgl-popup-anchor-bottom-left,
-      .mapboxgl-popup-anchor-bottom-right {
-        flex-direction: column-reverse;
-      }
-
-      .mapboxgl-popup-anchor-left {
-        flex-direction: row;
-      }
-
-      .mapboxgl-popup-anchor-right {
-        flex-direction: row-reverse;
-      }
-
-      .mapboxgl-popup-tip {
-        width: 0;
-        height: 0;
-        border: 10px solid transparent;
-        z-index: 1;
-      }
-
-      .mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
-        align-self: center;
-        border-top: none;
-        border-bottom-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip {
-        align-self: flex-start;
-        border-top: none;
-        border-left: none;
-        border-bottom-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
-        align-self: flex-end;
-        border-top: none;
-        border-right: none;
-        border-bottom-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
-        align-self: center;
-        border-bottom: none;
-        border-top-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip {
-        align-self: flex-start;
-        border-bottom: none;
-        border-left: none;
-        border-top-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
-        align-self: flex-end;
-        border-bottom: none;
-        border-right: none;
-        border-top-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-        align-self: center;
-        border-left: none;
-        border-right-color: #fff;
-      }
-
-      .mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-        align-self: center;
-        border-right: none;
-        border-left-color: #fff;
-      }
-
-      .mapboxgl-popup-close-button {
-        position: absolute;
-        right: 0;
-        top: 0;
-        border: 0;
-        border-radius: 0 3px 0 0;
-        cursor: pointer;
-        background-color: transparent;
-      }
-
-      .mapboxgl-popup-close-button:hover {
-        background-color: rgb(0 0 0 / 5%);
-      }
-
-      .mapboxgl-popup-content {
-        position: relative;
-        background: #fff;
-        border-radius: 3px;
-        box-shadow: 0 1px 2px rgb(0 0 0 / 10%);
-        padding: 10px 10px 15px;
-        pointer-events: auto;
-      }
-
-      .mapboxgl-popup-anchor-top-left .mapboxgl-popup-content {
-        border-top-left-radius: 0;
-      }
-
-      .mapboxgl-popup-anchor-top-right .mapboxgl-popup-content {
-        border-top-right-radius: 0;
-      }
-
-      .mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-content {
-        border-bottom-left-radius: 0;
-      }
-
-      .mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-content {
-        border-bottom-right-radius: 0;
-      }
-
-      .mapboxgl-popup-track-pointer {
-        display: none;
-      }
-
-      .mapboxgl-popup-track-pointer * {
-        pointer-events: none;
-        user-select: none;
-      }
-
-      .mapboxgl-map:hover .mapboxgl-popup-track-pointer {
-        display: flex;
-      }
-
-      .mapboxgl-map:active .mapboxgl-popup-track-pointer {
-        display: none;
-      }
-
-      .mapboxgl-marker {
-        position: absolute;
-        top: 0;
-        left: 0;
-        will-change: transform;
-        opacity: 1;
-        transition: opacity 0.2s;
+    .text-container {
+      font: 14px/1.5 'Helvetica Neue', Arial, Helvetica, sans-serif;
+      color: var(--bottom-container-color);
+      padding-left: 10px;
+      margin: 0;
+      position: static;
+      width: auto;
     }
-
-    .mapboxgl-user-location-dot {
-        background-color: #1da1f2;
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
+    #root {
+      width: 100%;
+      position: relative;
     }
-
-    .mapboxgl-user-location-dot::before {
-        background-color: #1da1f2;
-        content: "";
-        width: 15px;
-        height: 15px;
-        border-radius: 50%;
-        position: absolute;
-        animation: mapboxgl-user-location-dot-pulse 2s infinite;
+    #map-wrap {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      position: relative;
+      display: block;
+      box-sizing: border-box;
+      overflow: hidden;
     }
-
-    .mapboxgl-user-location-dot::after {
-        border-radius: 50%;
-        border: 2px solid #fff;
-        content: "";
-        height: 19px;
-        left: -2px;
-        position: absolute;
-        top: -2px;
-        width: 19px;
-        box-sizing: border-box;
-        box-shadow: 0 0 3px rgb(0 0 0 / 35%);
+    #map {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
-
-    .mapboxgl-user-location-show-heading .mapboxgl-user-location-heading {
-        width: 0;
-        height: 0;
+    #card-title {
+      margin: 8px 0px 4px 8px;
+      font-size: 1.5em;
     }
-
-    .mapboxgl-user-location-show-heading .mapboxgl-user-location-heading::before,
-    .mapboxgl-user-location-show-heading .mapboxgl-user-location-heading::after {
-        content: "";
-        border-bottom: 7.5px solid #4aa1eb;
-        position: absolute;
+    #color-bar {
+      height: 8px;
     }
-
-    .mapboxgl-user-location-show-heading .mapboxgl-user-location-heading::before {
-        border-left: 7.5px solid transparent;
-        transform: translate(0, -28px) skewY(-20deg);
+    #div-progress-bar {
+      height: 8px;
+      background-color: var(--progress-bar-background);
     }
-
-    .mapboxgl-user-location-show-heading .mapboxgl-user-location-heading::after {
-        border-right: 7.5px solid transparent;
-        transform: translate(7.5px, -28px) skewY(20deg);
+    #progress-bar {
+      height: 8px;
+      width: 0;
+      background-color: var(--progress-bar-color);
     }
-
-    @keyframes mapboxgl-user-location-dot-pulse {
-        0%   { transform: scale(1); opacity: 1; }
-        70%  { transform: scale(3); opacity: 0; }
-        100% { transform: scale(1); opacity: 0; }
+    #bottom-container {
+      min-height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: var(--bottom-container-background);
+      padding: 2px 8px;
+      box-sizing: border-box;
     }
-
-    .mapboxgl-user-location-dot-stale {
-        background-color: #aaa;
+    .recenter-btn {
+      display: block;
+      width: 30px;
+      height: 30px;
+      background-image: url('/local/community/bom-radar-card/recenter.png');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: 18px 18px;
     }
-
-    .mapboxgl-user-location-dot-stale::after {
-        display: none;
-    }
-
-    .mapboxgl-user-location-accuracy-circle {
-        background-color: #1da1f233;
-        width: 1px;
-        height: 1px;
-        border-radius: 100%;
-    }
-
-    .mapboxgl-crosshair,
-    .mapboxgl-crosshair .mapboxgl-interactive,
-    .mapboxgl-crosshair .mapboxgl-interactive:active {
-        cursor: crosshair;
-    }
-
-    .mapboxgl-boxzoom {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 0;
-        height: 0;
-        background: #fff;
-        border: 2px dotted #202020;
-        opacity: 0.5;
-    }
-
-    @media print {
-        /* stylelint-disable-next-line selector-class-pattern */
-        .mapbox-improve-map {
-            display: none;
-        }
-    }
-
-    .mapboxgl-touch-pan-blocker,
-    .mapboxgl-scroll-zoom-blocker {
-        color: #fff;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-        justify-content: center;
-        text-align: center;
-        position: absolute;
-        display: flex;
-        align-items: center;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgb(0 0 0 / 70%);
-        opacity: 0;
-        pointer-events: none;
-        transition: opacity 0.75s ease-in-out;
-        transition-delay: 1s;
-    }
-
-    .mapboxgl-touch-pan-blocker-show,
-    .mapboxgl-scroll-zoom-blocker-show {
-        opacity: 1;
-        transition: opacity 0.1s ease-in-out;
-    }
-
-    .mapboxgl-canvas-container.mapboxgl-touch-pan-blocker-override.mapboxgl-scrollable-page,
-    .mapboxgl-canvas-container.mapboxgl-touch-pan-blocker-override.mapboxgl-scrollable-page .mapboxgl-canvas {
-        touch-action: pan-x pan-y;
-    }
-
-    .marker {
+    .marker-icon {
       display: block;
       border: none;
       padding: 0;
-  }
-    `;
+    }
+  `;
 
   public static async getConfigElement(): Promise<LovelaceCardEditor> {
     return document.createElement('bom-radar-card-editor') as LovelaceCardEditor;
@@ -626,21 +157,23 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
 
   @property({ type: Boolean, reflect: true })
   public isPanel = false;
-  private map?: mapboxgl.Map;
+  private map?: L.Map;
   private start_time = 0;
   private frame_count = 12;
   private frame_delay = 250;
   private restart_delay = 1000;
   private mapLayers: string[] = [];
+  private radarTileLayers: Map<string, L.TileLayer> = new Map();
   private radarTime: string[] = [];
   private frame = 0;
-  private frameTimer: NodeJS.Timeout | undefined;
+  private frameTimer: ReturnType<typeof setInterval> | undefined;
   private barsize = 0;
   private center_lon = 133.75;
   private center_lat = -27.85;
-  private marker?: mapboxgl.Marker;
+  private marker?: L.Marker;
   private resizeObserver?: ResizeObserver;
   private overlayTransparency = 0;
+  private leafletCssInjected = false;
 
   // Add any properities that should cause your element to re-render here
   @property({ attribute: false }) public hass!: HomeAssistant;
@@ -650,7 +183,6 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   @property() currentTime = '';
 
   public setConfig(config: BomRadarCardConfig): void {
-
     this._config = config;
   }
 
@@ -674,7 +206,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
     try {
       // Round current time down to nearest 5-minute interval
       // Subtract 5 minutes to ensure the latest tile has been published
-      const now = Date.now() - (5 * 60 * 1000);
+      const now = Date.now() - 5 * 60 * 1000;
       const latestMs = Math.floor(now / (5 * 60 * 1000)) * (5 * 60 * 1000);
       const latest = this.formatWmtsTimestamp(new Date(latestMs));
 
@@ -682,17 +214,18 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       const count = Math.max(this.frame_count, 12) + 4;
       const timestamps: string[] = [];
       for (let i = 0; i < count; i++) {
-        const t = latestMs - (i * 5 * 60 * 1000);
+        const t = latestMs - i * 5 * 60 * 1000;
         timestamps.unshift(this.formatWmtsTimestamp(new Date(t)));
       }
       this.availableTimestamps = timestamps;
 
       const newTime = latest;
-      if (this.currentTime == newTime) {
+      if (this.currentTime === newTime) {
         this.scheduleCapabilitiesRetry();
         return Date.parse(latest);
       }
 
+      this.capabilitiesRetryCount = 0;
       this.currentTime = newTime;
 
       const t = Date.parse(latest);
@@ -722,7 +255,9 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   private scheduleCapabilitiesRetry(): void {
     const delay = Math.min(5000 * Math.pow(2, this.capabilitiesRetryCount), 60000);
     this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRadarCard.MAX_RETRY_COUNT);
-    setTimeout(() => { this.getRadarCapabilities(); }, delay);
+    setTimeout(() => {
+      this.getRadarCapabilities();
+    }, delay);
   }
 
   private normalizeOverlayTransparency(value: number | undefined): number {
@@ -745,32 +280,39 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   }
 
   private applyOverlayOpacityToLayers(): void {
-    const map = this.map;
-    if (!map) {
-      return;
-    }
-
     this.mapLayers.forEach((layerId, index) => {
-      if (!map.getLayer(layerId)) {
-        return;
-      }
-
+      const layer = this.radarTileLayers.get(layerId);
+      if (!layer) return;
       const targetOpacity = index === this.frame ? this.getOverlayOpacity() : 0;
-      map.setPaintProperty(layerId, 'raster-opacity', targetOpacity);
+      layer.setOpacity(targetOpacity);
     });
+  }
+
+  /** Inject Leaflet's CSS into the shadow root so it renders correctly. */
+  private injectLeafletCss(): void {
+    if (this.leafletCssInjected) return;
+    const root = this.shadowRoot;
+    if (!root) return;
+
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+    root.appendChild(link);
+    this.leafletCssInjected = true;
   }
 
   constructor() {
     super();
   }
 
-  async firstUpdated() {
+  public override async firstUpdated(): Promise<void> {
+    this.injectLeafletCss();
     await this.initMap();
 
     const wrap = this.shadowRoot?.getElementById('map-wrap');
     if (wrap && 'ResizeObserver' in window) {
       const ro = new ResizeObserver(() => {
-        this.map?.resize();
+        this.map?.invalidateSize();
         this.barsize = wrap.clientWidth / this.frame_count;
         const progressBar = this.shadowRoot?.getElementById('progress-bar');
         if (progressBar instanceof HTMLElement) {
@@ -780,7 +322,6 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       ro.observe(wrap);
       this.resizeObserver = ro;
     }
-    this.map?.once('load', () => this.map?.resize());
   }
 
   private getHomeAssistantLocation(): { latitude?: number; longitude?: number } {
@@ -812,175 +353,98 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
     return defaultValue;
   }
 
-  private createRecenterControl(): mapboxgl.IControl {
-    const getCenter = (): mapboxgl.LngLatLike => [this.center_lon, this.center_lat];
-    const getZoom = (): number => this._config.zoom_level ?? this.map?.getZoom() ?? 0;
+  private createRecenterControl(): L.Control {
+    const getCenter = (): L.LatLngExpression => [this.center_lat, this.center_lon];
+    const getZoom = (): number => this._config.zoom_level ?? this.map?.getZoom() ?? 4;
 
-    return new RecenterControl(getCenter, getZoom);
+    return new RecenterControl(getCenter, getZoom, { position: 'bottomright' });
   }
 
-  private async initMap() {
-    this.getRadarCapabilities().then(async (t) => {
-      this.frame_count = this._config.frame_count != undefined ? this._config.frame_count : this.frame_count;
-      this.frame_delay = this._config.frame_delay !== undefined ? this._config.frame_delay : this.frame_delay;
-      this.restart_delay = this._config.restart_delay !== undefined ? this._config.restart_delay : this.restart_delay;
-      this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
-      this.start_time = t - ((this.frame_count - 1) * 5 * 60 * 1000);
+  private async initMap(): Promise<void> {
+    const t = await this.getRadarCapabilities();
+    this.frame_count = this._config.frame_count !== undefined ? this._config.frame_count : this.frame_count;
+    this.frame_delay = this._config.frame_delay !== undefined ? this._config.frame_delay : this.frame_delay;
+    this.restart_delay = this._config.restart_delay !== undefined ? this._config.restart_delay : this.restart_delay;
+    this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
+    this.start_time = t - (this.frame_count - 1) * 5 * 60 * 1000;
 
-      const container = this.shadowRoot?.getElementById('map');
-      const isDark = this._config.map_style === 'Dark';
-      const mapStyle: mapboxgl.Style = {
-        version: 8,
-        sources: {
-          'osm-tiles': {
-            type: 'raster',
-            tiles: isDark
-              ? ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
-                 'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png']
-              : ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
-                 'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
-            tileSize: 256,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-          },
-        },
-        layers: [
-          {
-            id: 'osm-tiles',
-            type: 'raster',
-            source: 'osm-tiles',
-            minzoom: 0,
-            maxzoom: 19,
-          },
-        ],
-      };
-      if (container) {
-        await this.waitForStableMapSize(container);
+    const container = this.shadowRoot?.getElementById('map');
+    const isDark = this._config.map_style === 'Dark';
 
-        const haLocation = this.getHomeAssistantLocation();
-        this.center_lon = this.resolveCoordinate(
-          this._config.center_longitude,
-          haLocation.longitude,
-          this.center_lon,
-        );
-        this.center_lat = this.resolveCoordinate(
-          this._config.center_latitude,
-          haLocation.latitude,
-          this.center_lat,
-        );
+    if (container) {
+      const haLocation = this.getHomeAssistantLocation();
+      this.center_lon = this.resolveCoordinate(this._config.center_longitude, haLocation.longitude, this.center_lon);
+      this.center_lat = this.resolveCoordinate(this._config.center_latitude, haLocation.latitude, this.center_lat);
 
-        // Mapbox GL JS v2 requires an access token even when using an inline style
-        // with no Mapbox-hosted resources. The token is only used for SDK initialisation.
-        this.map = new mapboxgl.Map({
-          accessToken: 'pk.eyJ1IjoiYm9tLWRjLXByb2QiLCJhIjoiY2w4dHA5ZHE3MDlsejN3bnFwZW5vZ2xxdyJ9.KQjQkhGAu78U2Lu5Rxxh4w',
-          container: container,
-          style: mapStyle,
-          zoom: this._config.zoom_level,
-          center: [this.center_lon, this.center_lat],
-          projection: { name: 'mercator' },
-          attributionControl: false,
-          maxBounds: [109, -47, 158.1, -7],
-          minZoom: 3,
-          maxZoom: 8,
-        });
-
-        const el = document.createElement('div');
-        el.className = 'marker';
-        el.style.backgroundImage = isDark
-          ? 'url(/local/community/bom-radar-card/home-circle-light.svg)'
-          : 'url(/local/community/bom-radar-card/home-circle-dark.svg)';
-        el.style.width = `15px`;
-        el.style.height = `15px`;
-        el.style.backgroundSize = '100%';
-
-        this.marker = new mapboxgl.Marker(el);
-
-        const markerLat = this.resolveCoordinate(
-          this._config.marker_latitude,
-          this._config.show_marker ? haLocation.latitude : undefined,
-          NaN,
-        );
-        const markerLon = this.resolveCoordinate(
-          this._config.marker_longitude,
-          this._config.show_marker ? haLocation.longitude : undefined,
-          NaN,
-        );
-
-        const map = this.map;
-        if ((this._config.show_marker) && !Number.isNaN(markerLat) && !Number.isNaN(markerLon) && map !== undefined) {
-          this.marker.setLngLat([Number(markerLon), Number(markerLat)]);
-          this.marker.addTo(map);
-        }
-
-        this.map.on('load', () => {
-          // Show Scale
-          if (this._config.show_scale && this.map) {
-            const unit: 'imperial' | 'metric' =
-              this.hass?.config?.unit_system?.length === 'mi' ? 'imperial' : 'metric';
-            this.map.addControl(new mapboxgl.ScaleControl({ unit }), 'bottom-left');
-          }
-          // Show Recenter
-          if (this._config.show_recenter && this.map) {
-            this.map.addControl(this.createRecenterControl(), 'bottom-right');
-          }
-          // Show Zoom Controls
-          if (this._config.show_zoom && this.map) {
-            this.map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-          }
-          this.loadMapContent();
-        });
-      }
-    });
-  }
-
-  protected sleep(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-
-  private async waitForStableMapSize(container: HTMLElement): Promise<void> {
-    const target = this.shadowRoot?.getElementById('map-wrap') ?? container;
-
-    if (!target) {
-      await this.sleep(200);
-      return;
-    }
-
-    // Always wait for the container to have non-zero dimensions.
-    // Cards on hidden HA tabs can have 0x0 size at firstUpdated time,
-    // which causes Mapbox GL's projection matrix to be uninitialised
-    // and throws "Cannot read properties of undefined (reading '0')".
-    const maxWait = 5000;
-    const interval = 50;
-    let waited = 0;
-    while (waited < maxWait && (target.clientWidth === 0 || target.clientHeight === 0)) {
-      await this.sleep(interval);
-      waited += interval;
-    }
-
-    if (!('ResizeObserver' in window)) {
-      await this.sleep(200);
-      return;
-    }
-
-    // In the card editor preview, the container resizes dynamically;
-    // wait until it stabilises before creating the map.
-    if (this.parentNode?.nodeName === 'HUI-CARD-PREVIEW') {
-      await new Promise<void>((resolve) => {
-        let timeoutId = 0;
-
-        const finish = () => {
-          window.clearTimeout(timeoutId);
-          observer.disconnect();
-          resolve();
-        };
-
-        const observer = new ResizeObserver(() => {
-          window.clearTimeout(timeoutId);
-          timeoutId = window.setTimeout(finish, 150);
-        });
-
-        timeoutId = window.setTimeout(finish, 150);
-        observer.observe(target);
+      this.map = L.map(container, {
+        center: [this.center_lat, this.center_lon],
+        zoom: this._config.zoom_level ?? 4,
+        minZoom: 3,
+        maxZoom: 10,
+        maxBounds: L.latLngBounds([-47, 109], [-7, 158.1]),
+        maxBoundsViscosity: 1.0,
+        attributionControl: false,
+        zoomControl: false,
       });
+
+      // Basemap
+      const baseTileUrl = isDark
+        ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+        : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+      L.tileLayer(baseTileUrl, {
+        subdomains: 'abcd',
+        maxZoom: 19,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      }).addTo(this.map);
+
+      // Marker
+      const markerIconUrl = isDark
+        ? '/local/community/bom-radar-card/home-circle-light.svg'
+        : '/local/community/bom-radar-card/home-circle-dark.svg';
+      const markerIcon = L.icon({
+        iconUrl: markerIconUrl,
+        iconSize: [15, 15],
+        iconAnchor: [7, 7],
+        className: 'marker-icon',
+      });
+      this.marker = L.marker([0, 0], { icon: markerIcon });
+
+      const markerLat = this.resolveCoordinate(
+        this._config.marker_latitude,
+        this._config.show_marker ? haLocation.latitude : undefined,
+        NaN,
+      );
+      const markerLon = this.resolveCoordinate(
+        this._config.marker_longitude,
+        this._config.show_marker ? haLocation.longitude : undefined,
+        NaN,
+      );
+
+      if (this._config.show_marker && !Number.isNaN(markerLat) && !Number.isNaN(markerLon) && this.map) {
+        this.marker.setLatLng([markerLat, markerLon]);
+        this.marker.addTo(this.map);
+      }
+
+      // Controls
+      if (this._config.show_scale) {
+        const imperial = this.hass?.config?.unit_system?.length === 'mi';
+        L.control
+          .scale({
+            metric: !imperial,
+            imperial,
+            position: 'bottomleft',
+          })
+          .addTo(this.map);
+      }
+      if (this._config.show_recenter) {
+        this.map.addControl(this.createRecenterControl());
+      }
+      if (this._config.show_zoom) {
+        L.control.zoom({ position: 'topright' }).addTo(this.map);
+      }
+
+      this.loadMapContent();
     }
   }
 
@@ -993,20 +457,11 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       ' ' +
       month[x.getMonth()] +
       ' ' +
-      x
-        .getDate()
-        .toString()
-        .padStart(2, '0') +
+      x.getDate().toString().padStart(2, '0') +
       ' ' +
-      x
-        .getHours()
-        .toString()
-        .padStart(2, '0') +
+      x.getHours().toString().padStart(2, '0') +
       ':' +
-      x
-        .getMinutes()
-        .toString()
-        .padStart(2, '0')
+      x.getMinutes().toString().padStart(2, '0')
     );
   }
 
@@ -1014,8 +469,10 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
     this.mapLoaded = true;
     this.loadRadarLayers();
     this.frame = this.mapLayers.length - 1;
-    if (this.map && this.mapLayers[this.frame] && this.map.getLayer(this.mapLayers[this.frame])) {
-      this.map.setPaintProperty(this.mapLayers[this.frame], 'raster-opacity', this.getOverlayOpacity());
+    // Show the latest frame
+    const currentLayer = this.radarTileLayers.get(this.mapLayers[this.frame]);
+    if (currentLayer) {
+      currentLayer.setOpacity(this.getOverlayOpacity());
     }
     this.applyOverlayOpacityToLayers();
     this.frameTimer = setInterval(() => this.changeRadarFrame(), this.restart_delay);
@@ -1030,50 +487,41 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   }
 
   protected setNextUpdateTimeout(time: number) {
-    const nextTime = time + (10 * 60 * 1000) + (15 * 1000);
-    setTimeout(() => { this.getRadarCapabilities(); }, nextTime - Date.now());
+    const nextTime = time + 10 * 60 * 1000 + 15 * 1000;
+    setTimeout(() => {
+      this.getRadarCapabilities();
+    }, nextTime - Date.now());
   }
 
   protected addRadarLayer(id: string) {
-    if ((this.map !== undefined) && (id !== '') && (this.mapLoaded === true)) {
+    if (this.map && id !== '' && this.mapLoaded) {
       // BOM WMTS tile URL: {TileMatrix}/{TileRow}/{TileCol}
-      // Mapbox GL uses {z}/{x}/{y} where x=col, y=row
-      // WMTS uses {z}/{row}/{col} so we need {z}/{y}/{x}
+      // Leaflet uses {z}/{x}/{y} where x=col, y=row by default
+      // WMTS uses {z}/{row}/{col} so we swap x and y via a custom URL template
       const tileUrl = `${wmtsTileBase}/${id}/GoogleMapsCompatible_BoM/{z}/{y}/{x}.png`;
 
-      this.map.addSource(id, {
-        type: 'raster',
-        tiles: [tileUrl],
+      const layer = L.tileLayer(tileUrl, {
+        opacity: 0,
         tileSize: 256,
       });
-
-      this.map.addLayer({
-        id: id,
-        type: 'raster',
-        source: id,
-        layout: { visibility: 'visible' },
-        paint: {
-          'raster-opacity': 0,
-          'raster-opacity-transition': { duration: 5, delay: 0 },
-          'raster-fade-duration': 0,
-        },
-      });
+      layer.addTo(this.map);
+      this.radarTileLayers.set(id, layer);
     }
   }
 
   protected removeRadarLayer(id: string) {
-    if (this.map !== undefined) {
-      if (this.map.getLayer(id)) {
-        this.map.removeLayer(id);
-        this.map.removeSource(id);
-      }
+    const layer = this.radarTileLayers.get(id);
+    if (layer && this.map) {
+      this.map.removeLayer(layer);
+      this.radarTileLayers.delete(id);
     }
   }
 
   protected loadRadarLayers() {
-    const timestamps = this.availableTimestamps.length > 0
-      ? this.availableTimestamps.slice(-this.frame_count)
-      : this.generateTimestamps();
+    const timestamps =
+      this.availableTimestamps.length > 0
+        ? this.availableTimestamps.slice(-this.frame_count)
+        : this.generateTimestamps();
 
     for (const ts of timestamps) {
       const id = ts;
@@ -1086,26 +534,29 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   private generateTimestamps(): string[] {
     const timestamps: string[] = [];
     for (let i = 0; i < this.frame_count; i++) {
-      const time = this.start_time + (i * 5 * 60 * 1000);
+      const time = this.start_time + i * 5 * 60 * 1000;
       timestamps.push(this.formatWmtsTimestamp(new Date(time)));
     }
     return timestamps;
   }
 
   private changeRadarFrame(): void {
-    if (this.map !== undefined) {
+    if (this.map) {
       const extra = this.mapLayers.length > this.frame_count;
       let next = (this.frame + 1) % this.mapLayers.length;
       const currentLayer = this.mapLayers[this.frame];
       const nextLayer = this.mapLayers[next];
 
-      if (currentLayer && this.map.getLayer(currentLayer)) {
-        this.map.setPaintProperty(currentLayer, 'raster-opacity', 0);
+      const currentTileLayer = this.radarTileLayers.get(currentLayer);
+      if (currentTileLayer) {
+        currentTileLayer.setOpacity(0);
       }
 
-      if (nextLayer && this.map.getLayer(nextLayer)) {
-        this.map.setPaintProperty(nextLayer, 'raster-opacity', this.getOverlayOpacity());
+      const nextTileLayer = this.radarTileLayers.get(nextLayer);
+      if (nextTileLayer) {
+        nextTileLayer.setOpacity(this.getOverlayOpacity());
       }
+
       if (extra) {
         const oldLayer = this.mapLayers.shift();
         this.radarTime.shift();
@@ -1121,17 +572,16 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
         el.style.width = (this.frame + 1) * this.barsize + 'px';
       }
 
-      if (next == this.frame_count - 1) {
+      if (next === this.frame_count - 1) {
         clearInterval(this.frameTimer);
         this.frameTimer = setInterval(() => this.changeRadarFrame(), this.restart_delay);
-      }
-      else {
+      } else {
         clearInterval(this.frameTimer);
         this.frameTimer = setInterval(() => this.changeRadarFrame(), this.frame_delay);
       }
 
       const ts = this.shadowRoot?.getElementById('timestamp');
-      if ((ts !== undefined) && (ts !== null)) {
+      if (ts) {
         ts.innerHTML = this.radarTime[this.frame];
       }
     }
@@ -1149,27 +599,31 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
 
       if (previousConfig) {
         if (this._config.zoom_level !== previousConfig.zoom_level) {
-          this.map?.jumpTo({ center: [this.center_lon, this.center_lat], zoom: this._config.zoom_level });
+          this.map?.setView([this.center_lat, this.center_lon], this._config.zoom_level);
         }
 
         if (this._config.center_longitude !== previousConfig.center_longitude) {
           const haLocation = this.getHomeAssistantLocation();
           this.center_lon = this.resolveCoordinate(this._config.center_longitude, haLocation.longitude, 133.75);
-          this.map?.jumpTo({ center: [this.center_lon, this.center_lat], zoom: this._config.zoom_level });
+          this.map?.setView([this.center_lat, this.center_lon], this._config.zoom_level);
         }
 
         if (this._config.center_latitude !== previousConfig.center_latitude) {
           const haLocation = this.getHomeAssistantLocation();
           this.center_lat = this.resolveCoordinate(this._config.center_latitude, haLocation.latitude, -27.85);
-          this.map?.jumpTo({ center: [this.center_lon, this.center_lat], zoom: this._config.zoom_level });
+          this.map?.setView([this.center_lat, this.center_lon], this._config.zoom_level);
         }
 
         if (this._config.frame_delay !== previousConfig.frame_delay) {
-          this.frame_delay = (this._config.frame_delay === undefined) || isNaN(this._config.frame_delay) ? 250 : this._config.frame_delay;
+          this.frame_delay =
+            this._config.frame_delay === undefined || isNaN(this._config.frame_delay) ? 250 : this._config.frame_delay;
         }
 
         if (this._config.restart_delay !== previousConfig.restart_delay) {
-          this.restart_delay = (this._config.restart_delay === undefined) || isNaN(this._config.restart_delay) ? 1000 : this._config.restart_delay;
+          this.restart_delay =
+            this._config.restart_delay === undefined || isNaN(this._config.restart_delay)
+              ? 1000
+              : this._config.restart_delay;
         }
 
         if (this._config.overlay_transparency !== previousConfig.overlay_transparency) {
@@ -1177,32 +631,24 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
           this.applyOverlayOpacityToLayers();
         }
 
-        if ((this._config.show_marker !== previousConfig.show_marker) || (this._config.marker_latitude !== previousConfig.marker_latitude) || (this._config.marker_longitude !== previousConfig.marker_longitude)) {
-          if (this.marker !== undefined) {
+        if (
+          this._config.show_marker !== previousConfig.show_marker ||
+          this._config.marker_latitude !== previousConfig.marker_latitude ||
+          this._config.marker_longitude !== previousConfig.marker_longitude
+        ) {
+          if (this.marker) {
             if (this._config.show_marker) {
               const haLocation = this.getHomeAssistantLocation();
-              const markerLat = this.resolveCoordinate(
-                this._config.marker_latitude,
-                haLocation.latitude,
-                NaN,
-              );
-              const markerLon = this.resolveCoordinate(
-                this._config.marker_longitude,
-                haLocation.longitude,
-                NaN,
-              );
+              const markerLat = this.resolveCoordinate(this._config.marker_latitude, haLocation.latitude, NaN);
+              const markerLon = this.resolveCoordinate(this._config.marker_longitude, haLocation.longitude, NaN);
 
-              if (!Number.isNaN(markerLat) && !Number.isNaN(markerLon)) {
-                this.marker.setLngLat([markerLon, markerLat]);
-                const map = this.map;
-                if (map !== undefined) {
-                  this.marker.addTo(map);
-                }
+              if (!Number.isNaN(markerLat) && !Number.isNaN(markerLon) && this.map) {
+                this.marker.setLatLng([markerLat, markerLon]);
+                this.marker.addTo(this.map);
               } else {
                 this.marker.remove();
               }
-            }
-            else {
+            } else {
               this.marker.remove();
             }
           }
@@ -1212,8 +658,8 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       return true;
     }
 
-    if ((changedProps.has('currentTime')) && (this.currentTime !== '')) {
-      if (this.map !== undefined) {
+    if (changedProps.has('currentTime') && this.currentTime !== '') {
+      if (this.map) {
         const id = this.currentTime;
         this.mapLayers.push(id);
         this.radarTime.push(this.getRadarTimeString(this.currentTime));
@@ -1227,35 +673,35 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   }
 
   protected updateStyle(elem: this) {
-    if (this._config.map_style === "Dark") {
-      elem?.style.setProperty("--progress-bar-background", "#1C1C1C");
-      elem?.style.setProperty("--progress-bar-color", "steelblue");
-      elem?.style.setProperty("--bottom-container-background", "#1C1C1C");
-      elem?.style.setProperty("--bottom-container-color", "#DDDDDD");
-      elem?.style.setProperty("--bottom-container-classname", "dark-links");
+    if (this._config.map_style === 'Dark') {
+      elem?.style.setProperty('--progress-bar-background', '#1C1C1C');
+      elem?.style.setProperty('--progress-bar-color', 'steelblue');
+      elem?.style.setProperty('--bottom-container-background', '#1C1C1C');
+      elem?.style.setProperty('--bottom-container-color', '#DDDDDD');
     } else {
-      elem?.style.setProperty("--progress-bar-background", "white");
-      elem?.style.setProperty("--progress-bar-color", "#ccf2ff");
-      elem?.style.setProperty("--bottom-container-background", "white");
-      elem?.style.setProperty("--bottom-container-color", "black");
-
+      elem?.style.setProperty('--progress-bar-background', 'white');
+      elem?.style.setProperty('--progress-bar-color', '#ccf2ff');
+      elem?.style.setProperty('--bottom-container-background', 'white');
+      elem?.style.setProperty('--bottom-container-color', 'black');
     }
   }
 
   public override connectedCallback(): void {
     super.connectedCallback();
     this.updateStyle(this);
-    // Trigger resize after the card is re-attached to the DOM (e.g. tab switch).
-    // Without this, the projection matrix can remain stale/uninitialised and
-    // any mouse interaction throws "Cannot read properties of undefined".
+    // Leaflet doesn't need the projection matrix hack that Mapbox did,
+    // but we do need to invalidate the size after tab switches.
     if (this.map) {
-      requestAnimationFrame(() => this.map?.resize());
+      requestAnimationFrame(() => this.map?.invalidateSize());
     }
   }
 
   public override disconnectedCallback(): void {
     super.disconnectedCallback();
     this.resizeObserver?.disconnect();
+    if (this.frameTimer) {
+      clearInterval(this.frameTimer);
+    }
   }
 
   protected override render(): TemplateResult | void {
@@ -1263,22 +709,23 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       return this.showWarning('Show Warning');
     }
 
-    if (this._config.map_style === "Dark") {
-      const dpb = document.getElementById("shadow-root");
-      dpb?.style.setProperty("--progress-bar-background", "#1C1C1C");
-    }
-
-    const cardTitle = this._config.card_title !== undefined ? html`<div id="card-title">${this._config.card_title}</div>` : ``;
+    const cardTitle =
+      this._config.card_title !== undefined ? html`<div id="card-title">${this._config.card_title}</div>` : html``;
 
     return html`
       <ha-card id="card">
         ${cardTitle}
         <div id="root">
           <div id="color-bar">
-            <img id="img-color-bar" src="/local/community/bom-radar-card/radar-colour-bar.png" height="8" style="vertical-align: top" />
+            <img
+              id="img-color-bar"
+              src="/local/community/bom-radar-card/radar-colour-bar.png"
+              height="8"
+              style="vertical-align: top"
+            />
           </div>
-          <div id='map-wrap'>
-		  	<div id='map'></div>
+          <div id="map-wrap">
+            <div id="map"></div>
           </div>
           <div id="div-progress-bar">
             <div id="progress-bar"></div>
@@ -1287,8 +734,8 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
             <div id="timestampid" class="text-container">
               <p id="timestamp"></p>
             </div>
-            <div id="attribution" class="text-container-small" style="height: 32px; float:right;">
-              <span class="Map__Attribution-LjffR DKiFh" id="attribution"></span>
+            <div id="attribution-container" class="text-container-small" style="height: 32px; float: right;">
+              <span class="Map__Attribution-LjffR DKiFh"></span>
             </div>
           </div>
         </div>
@@ -1297,25 +744,6 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
   }
 
   private showWarning(warning: string): TemplateResult {
-    return html`
-      <hui-warning>${warning}</hui-warning>
-    `;
+    return html` <hui-warning>${warning}</hui-warning> `;
   }
-
-  private showError(error: string): TemplateResult {
-    const errorCard = document.createElement('hui-error-card') as LovelaceCard;
-    errorCard.setConfig({
-      type: 'error',
-      error,
-      origConfig: this._config,
-    });
-
-    return html`
-      ${errorCard}
-    `;
-  }
-
-}
-if (!customElements.get('bom-radar-card')) {
-	customElements.define('bom-radar-card', BomRadarCard);
 }

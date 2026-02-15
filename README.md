@@ -4,7 +4,7 @@ A Home Assistant rain radar card using WMTS raster tiles from the Australian BOM
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release][releases-shield]][releases]
-[![License][license-shield]](LICENSE.md)
+[![License][license-shield]](LICENSE)
 ![Maintenance](https://img.shields.io/maintenance/yes/2025?style=for-the-badge)
 
 ## Contributors
@@ -14,7 +14,7 @@ A Home Assistant rain radar card using WMTS raster tiles from the Australian BOM
 
 ## Description
 
-The new Austalian BOM radar products (mobile app and https://weather.bom.gov.au/) now use WMTS raster tiles to distribute the radar images. This allows for one continous map that can be zoomed and panned seamlessly. This card allows this to be displayed within Home Assistant. Radar colours are rendered server-side by BOM.
+The new Australian BOM radar products (mobile app and https://weather.bom.gov.au/) now use WMTS raster tiles to distribute radar images. This allows for one continuous map that can be zoomed and panned seamlessly. This card displays that map in Home Assistant. Radar colours are rendered server-side by BOM.
 
 ![BOM Radar card](https://raw.githubusercontent.com/makin-things/bom-radar-card/master/bom-radar-card.gif)
 
@@ -29,7 +29,7 @@ All of the options below can be selected using the GUI config editor, there is n
 | type                 | string  | **Required** |                                                              | must be `custom:bom-radar-card`              |
 | card_title           | string  | **Optional** | The title to display on the card                             | no title displayed                           |
 | map_style            | string  | **Optional** | Specifies the style for the map **_(Light, Dark)_**          | `'Light'` see section below for valid values |
-| zoom_level           | number  | **Optional** | The initial zoom level, can be from 4 to 8                   | `8`                                          |
+| zoom_level           | number  | **Optional** | The initial zoom level, can be from 3 to 10                  | `8`                                          |
 | center_latitude      | number  | **Optional** | The initial center latitude of the map                       | your HA default latitude                     |
 | center_longitude     | number  | **Optional** | The initial center longitude of the map                      | your HA default longitude                    |
 | marker_latitude      | number  | **Optional** | The latitude for the home icon if enabled                    | same as `center_latitude`                    |
@@ -73,13 +73,10 @@ If you don't use HACS (seriously you should as it makes life so much easier), yo
         └── community
             └── bom-radar-card
                 └── bom-radar-card.js
-                └── compass.svg
                 └── home-circle-dark.svg
                 └── home-circle-light.svg
                 └── radar-colour-bar.png
                 └── recenter.png
-                └── zoom-in.svg
-                └── zoom-out.svg
 ```
 
 Next add the following entry in lovelace configuration:
