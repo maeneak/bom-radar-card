@@ -155,7 +155,6 @@ class BomRadarGridLayer extends L.GridLayer {
         img.style.top = `${offsetY}px`;
         img.style.width = '256px';
         img.style.height = '256px';
-        img.crossOrigin = 'anonymous';
 
         img.onload = () => {
           pendingImages--;
