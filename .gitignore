@@ -1,6 +1,3 @@
 /node_modules/
 /.rpt2_cache/
 /.claude/
-*-network-requests.txt
-*-page-snapshot.md
-BOM-RADAR-API-FINDINGS.md
