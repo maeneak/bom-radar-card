@@ -1,6 +1,0 @@
-[     812ms] [WARNING] [esri.core.watchUtils] 🛑 DEPRECATED - Module: esri/core/watchUtils
-	🛠️ Replacement: esri/core/reactiveUtils
-	⚙️ Version: 4.24
-	🔗 See https://arcg.is/1LTnuf for more details. @ https://www.bom.gov.au/themes/custom/bom_theme/bom-react/dist/45358.07e6cda1745483a82743.js:0
-[  246092ms] [ERROR] Access to fetch at 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default/2026-02-15T09:05Z/GoogleMapsCompatible_BoM/4/2/1.png' from origin 'null' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ about:blank:0
-[  246092ms] [ERROR] Failed to load resource: net::ERR_FAILED @ https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default/2026-02-15T09:05Z/GoogleMapsCompatible_BoM/4/2/1.png:0

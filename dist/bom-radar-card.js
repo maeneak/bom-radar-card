@@ -373,7 +373,6 @@ var mapboxGlExports = mapboxGl.exports;
 var _a;
 var BomRadarCard_1;
 console.info(`%c  BOM-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `, 'color: orange; font-weight: bold; background: black', 'color: white; font-weight: bold; background: dimgray');
-const wmtsCapabilities = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/WMTSCapabilities.xml';
 const wmtsTileBase = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default';
 class RecenterControl {
     constructor(getCenter, getZoom) {
@@ -410,7 +409,7 @@ window.customCards = (_a = window.customCards) !== null && _a !== void 0 ? _a : 
 window.customCards.push({
     type: 'bom-radar-card',
     name: 'BoM Radar Card',
-    description: 'A rain radar card using the new vector tiles from the Australian BoM',
+    description: 'A rain radar card using the Bureau of Meteorology WMTS radar imagery',
 });
 let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     static async getConfigElement() {
@@ -426,64 +425,60 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     getCardSize() {
         return 10;
     }
+    /**
+     * Compute radar timestamps from current time.
+     * BOM publishes radar tiles every 5 minutes. We round down to the nearest
+     * 5-minute mark and generate frame_count timestamps going backwards.
+     * The WMTS capabilities XML is CORS-blocked from external domains,
+     * so we compute timestamps client-side instead of fetching them.
+     */
     async getRadarCapabilities() {
-        console.info('getRadarCapabilities ' + Date.now());
         try {
-            const response = await fetch(wmtsCapabilities, {
-                method: 'GET',
-                mode: 'cors',
-            });
-            if (!response || !response.ok) {
-                console.warn('WMTS capabilities fetch failed: HTTP ' + (response === null || response === void 0 ? void 0 : response.status));
-                this.scheduleCapabilitiesRetry();
-                return Promise.reject(response);
-            }
-            this.capabilitiesRetryCount = 0;
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xml = parser.parseFromString(xmlText, 'application/xml');
-            // Find the radar reflectivity layer
-            const layers = xml.querySelectorAll('Layer');
-            let timestamps = [];
-            for (const layer of layers) {
-                const identifier = layer.querySelector('Identifier');
-                if ((identifier === null || identifier === void 0 ? void 0 : identifier.textContent) === 'atm_surf_air_precip_reflectivity_dbz') {
-                    const dimension = layer.querySelector('Dimension');
-                    const valueEl = dimension === null || dimension === void 0 ? void 0 : dimension.querySelector('Value');
-                    if (valueEl === null || valueEl === void 0 ? void 0 : valueEl.textContent) {
-                        timestamps = valueEl.textContent.split(',').map(s => s.trim()).filter(s => s.length > 0);
-                    }
-                    break;
-                }
-            }
-            if (timestamps.length === 0) {
-                console.warn('No radar timestamps found in WMTS capabilities');
-                this.scheduleCapabilitiesRetry();
-                return Promise.reject(new Error('No timestamps'));
+            // Round current time down to nearest 5-minute interval
+            // Subtract 5 minutes to ensure the latest tile has been published
+            const now = Date.now() - (5 * 60 * 1000);
+            const latestMs = Math.floor(now / (5 * 60 * 1000)) * (5 * 60 * 1000);
+            const latest = this.formatWmtsTimestamp(new Date(latestMs));
+            // Generate enough timestamps to cover max possible frame_count (default 12, plus buffer)
+            const count = Math.max(this.frame_count, 12) + 4;
+            const timestamps = [];
+            for (let i = 0; i < count; i++) {
+                const t = latestMs - (i * 5 * 60 * 1000);
+                timestamps.unshift(this.formatWmtsTimestamp(new Date(t)));
             }
             this.availableTimestamps = timestamps;
-            const latest = timestamps[timestamps.length - 1];
             const newTime = latest;
             if (this.currentTime == newTime) {
                 this.scheduleCapabilitiesRetry();
                 return Date.parse(latest);
             }
             this.currentTime = newTime;
-            console.info('Latest ' + this.currentTime);
             const t = Date.parse(latest);
             this.setNextUpdateTimeout(t);
             return t;
         }
         catch (err) {
-            console.error('Error fetching WMTS capabilities:', err);
+            console.error('Error computing radar timestamps:', err);
             this.scheduleCapabilitiesRetry();
             return Promise.reject(err);
         }
     }
+    /**
+     * Format a Date as WMTS timestamp: YYYY-MM-DDTHH:MMZ (no seconds).
+     * BOM's tile server requires this exact format — timestamps with seconds
+     * (e.g. T10:20:00Z) return 404.
+     */
+    formatWmtsTimestamp(date) {
+        const y = date.getUTCFullYear();
+        const mo = String(date.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(date.getUTCDate()).padStart(2, '0');
+        const h = String(date.getUTCHours()).padStart(2, '0');
+        const mi = String(date.getUTCMinutes()).padStart(2, '0');
+        return `${y}-${mo}-${d}T${h}:${mi}Z`;
+    }
     scheduleCapabilitiesRetry() {
         const delay = Math.min(5000 * Math.pow(2, this.capabilitiesRetryCount), 60000);
         this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRadarCard_1.MAX_RETRY_COUNT);
-        console.info('Retrying capabilities in ' + delay + 'ms (attempt ' + this.capabilitiesRetryCount + ')');
         setTimeout(() => { this.getRadarCapabilities(); }, delay);
     }
     normalizeOverlayTransparency(value) {
@@ -532,7 +527,6 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         this.currentTime = '';
         this.capabilitiesRetryCount = 0;
         this.availableTimestamps = [];
-        console.info('constructor - defer init to firstUpdated');
     }
     async firstUpdated() {
         var _a, _b;
@@ -581,30 +575,48 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     async initMap() {
         this.getRadarCapabilities().then(async (t) => {
             var _a;
-            console.info('inital last time ' + t);
             this.frame_count = this._config.frame_count != undefined ? this._config.frame_count : this.frame_count;
             this.frame_delay = this._config.frame_delay !== undefined ? this._config.frame_delay : this.frame_delay;
             this.restart_delay = this._config.restart_delay !== undefined ? this._config.restart_delay : this.restart_delay;
             this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
             this.start_time = t - ((this.frame_count - 1) * 5 * 60 * 1000);
-            console.info('start_time ' + this.start_time);
-            console.info('frame_count ' + this.frame_count.toString());
-            console.info('frame_delay ' + this.frame_delay.toString());
-            console.info('frame_restart ' + this.restart_delay.toString());
             const container = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map');
-            this.beforeLayer = (this._config.map_style === undefined) ? undefined : (this._config.map_style === 'Light') ? undefined : 'settlement-subdivision-label';
-            const styleUrl = (this._config.map_style === undefined) ? 'mapbox://styles/mapbox/light-v11' : (this._config.map_style === 'Light') ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11';
+            const isDark = this._config.map_style === 'Dark';
+            const mapStyle = {
+                version: 8,
+                sources: {
+                    'osm-tiles': {
+                        type: 'raster',
+                        tiles: isDark
+                            ? ['https://cartodb-basemaps-a.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png',
+                                'https://cartodb-basemaps-b.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png']
+                            : ['https://cartodb-basemaps-a.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png',
+                                'https://cartodb-basemaps-b.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png'],
+                        tileSize: 256,
+                        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+                    },
+                },
+                layers: [
+                    {
+                        id: 'osm-tiles',
+                        type: 'raster',
+                        source: 'osm-tiles',
+                        minzoom: 0,
+                        maxzoom: 19,
+                    },
+                ],
+            };
             if (container) {
-                console.info('creating map');
-                console.info('offset width ' + container.offsetWidth);
                 await this.waitForStableMapSize(container);
                 const haLocation = this.getHomeAssistantLocation();
                 this.center_lon = this.resolveCoordinate(this._config.center_longitude, haLocation.longitude, this.center_lon);
                 this.center_lat = this.resolveCoordinate(this._config.center_latitude, haLocation.latitude, this.center_lat);
+                // Mapbox GL JS v2 requires an access token even when using an inline style
+                // with no Mapbox-hosted resources. The token is only used for SDK initialisation.
                 this.map = new mapboxGlExports.Map({
                     accessToken: 'pk.eyJ1IjoiYm9tLWRjLXByb2QiLCJhIjoiY2w4dHA5ZHE3MDlsejN3bnFwZW5vZ2xxdyJ9.KQjQkhGAu78U2Lu5Rxxh4w',
                     container: container,
-                    style: styleUrl,
+                    style: mapStyle,
                     zoom: this._config.zoom_level,
                     center: [this.center_lon, this.center_lat],
                     projection: { name: 'mercator' },
@@ -615,7 +627,9 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
                 });
                 const el = document.createElement('div');
                 el.className = 'marker';
-                el.style.backgroundImage = (this._config.map_style === 'Light') ? `url(/local/community/bom-radar-card/home-circle-dark.svg)` : `url(/local/community/bom-radar-card/home-circle-light.svg)`;
+                el.style.backgroundImage = isDark
+                    ? 'url(/local/community/bom-radar-card/home-circle-light.svg)'
+                    : 'url(/local/community/bom-radar-card/home-circle-dark.svg)';
                 el.style.width = `15px`;
                 el.style.height = `15px`;
                 el.style.backgroundSize = '100%';
@@ -627,21 +641,11 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
                     this.marker.setLngLat([Number(markerLon), Number(markerLat)]);
                     this.marker.addTo(map);
                 }
-                // This is the timestamp in UTC time to show radar images for.
-                // There are between 6-7 hours worth of data (for each 5 minutes).
-                // Shortly after 5 minutes past the hour the data for hour -7 is removed up to an including the :00 data.
-                // const ts = '202304090710';
                 this.map.on('load', () => {
-                    var _a, _b, _c, _d, _e, _f;
-                    console.info('map loaded');
-                    if (this._config.map_style === 'Dark') {
-                        (_a = this.map) === null || _a === void 0 ? void 0 : _a.moveLayer('continent-label', 'settlement-subdivision-label');
-                        (_b = this.map) === null || _b === void 0 ? void 0 : _b.moveLayer('country-label', 'settlement-subdivision-label');
-                        (_c = this.map) === null || _c === void 0 ? void 0 : _c.moveLayer('state-label', 'settlement-subdivision-label');
-                    }
+                    var _a, _b, _c;
                     // Show Scale
                     if (this._config.show_scale && this.map) {
-                        const unit = ((_f = (_e = (_d = this.hass) === null || _d === void 0 ? void 0 : _d.config) === null || _e === void 0 ? void 0 : _e.unit_system) === null || _f === void 0 ? void 0 : _f.length) === 'mi' ? 'imperial' : 'metric';
+                        const unit = ((_c = (_b = (_a = this.hass) === null || _a === void 0 ? void 0 : _a.config) === null || _b === void 0 ? void 0 : _b.unit_system) === null || _c === void 0 ? void 0 : _c.length) === 'mi' ? 'imperial' : 'metric';
                         this.map.addControl(new mapboxGlExports.ScaleControl({ unit }), 'bottom-left');
                     }
                     // Show Recenter
@@ -653,9 +657,6 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
                         this.map.addControl(new mapboxGlExports.NavigationControl(), 'top-right');
                     }
                     this.loadMapContent();
-                });
-                this.map.on('resize', () => {
-                    console.info('resize');
                 });
             }
         });
@@ -721,46 +722,45 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         this.loadRadarLayers();
         this.frame = this.mapLayers.length - 1;
         if (this.map && this.mapLayers[this.frame] && this.map.getLayer(this.mapLayers[this.frame])) {
-            this.map.setPaintProperty(this.mapLayers[this.frame], 'fill-opacity', this.getOverlayOpacity());
+            this.map.setPaintProperty(this.mapLayers[this.frame], 'raster-opacity', this.getOverlayOpacity());
         }
         this.applyOverlayOpacityToLayers();
         this.frameTimer = setInterval(() => this.changeRadarFrame(), this.restart_delay);
         const el = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map');
-        if ((el !== undefined) && (el !== null)) {
-            console.info('offset width ' + el.offsetWidth);
+        if (el) {
             this.barsize = el.offsetWidth / this.frame_count;
-            const pg = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById("progress-bar");
-            if ((pg !== undefined) && (pg !== null)) {
+            const pg = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById('progress-bar');
+            if (pg) {
                 pg.style.width = el.offsetWidth + 'px';
             }
         }
     }
     setNextUpdateTimeout(time) {
         const nextTime = time + (10 * 60 * 1000) + (15 * 1000);
-        console.info('delay ' + (nextTime - Date.now()));
         setTimeout(() => { this.getRadarCapabilities(); }, nextTime - Date.now());
     }
     addRadarLayer(id) {
         if ((this.map !== undefined) && (id !== '') && (this.mapLoaded === true)) {
-            const tileUrl = `${wmtsTileBase}/${id}/GoogleMapsCompatible_BoM/{z}/{x}/{y}.png`;
+            // BOM WMTS tile URL: {TileMatrix}/{TileRow}/{TileCol}
+            // Mapbox GL uses {z}/{x}/{y} where x=col, y=row
+            // WMTS uses {z}/{row}/{col} so we need {z}/{y}/{x}
+            const tileUrl = `${wmtsTileBase}/${id}/GoogleMapsCompatible_BoM/{z}/{y}/{x}.png`;
             this.map.addSource(id, {
                 type: 'raster',
                 tiles: [tileUrl],
                 tileSize: 256,
             });
             this.map.addLayer({
-                'id': id,
-                'type': 'raster',
-                'source': id,
-                'layout': {
-                    'visibility': 'visible'
-                },
-                'paint': {
+                id: id,
+                type: 'raster',
+                source: id,
+                layout: { visibility: 'visible' },
+                paint: {
                     'raster-opacity': 0,
-                    'raster-opacity-transition': { "duration": 5, "delay": 0 },
+                    'raster-opacity-transition': { duration: 5, delay: 0 },
                     'raster-fade-duration': 0,
-                }
-            }, this.beforeLayer);
+                },
+            });
         }
     }
     removeRadarLayer(id) {
@@ -772,26 +772,21 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         }
     }
     loadRadarLayers() {
-        console.info('times:');
-        // Use actual timestamps from WMTS capabilities when available
         const timestamps = this.availableTimestamps.length > 0
             ? this.availableTimestamps.slice(-this.frame_count)
             : this.generateTimestamps();
         for (const ts of timestamps) {
-            // Use the WMTS timestamp directly as the layer ID (e.g. '2026-02-15T08:45:00Z')
             const id = ts;
             this.mapLayers.push(id);
             this.radarTime.push(this.getRadarTimeString(ts));
             this.addRadarLayer(id);
-            console.info('  ' + id);
         }
     }
     generateTimestamps() {
         const timestamps = [];
         for (let i = 0; i < this.frame_count; i++) {
             const time = this.start_time + (i * 5 * 60 * 1000);
-            const ts = new Date(time).toISOString().replace('.000Z', 'Z');
-            timestamps.push(ts);
+            timestamps.push(this.formatWmtsTimestamp(new Date(time)));
         }
         return timestamps;
     }
@@ -817,8 +812,8 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
                 next--;
             }
             this.frame = next;
-            const el = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById("progress-bar");
-            if ((el !== undefined) && (el !== null)) {
+            const el = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('progress-bar');
+            if (el) {
                 el.style.width = (this.frame + 1) * this.barsize + 'px';
             }
             if (next == this.frame_count - 1) {
@@ -837,17 +832,14 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
     }
     shouldUpdate(changedProps) {
         var _a, _b, _c;
-        console.info('should update');
         if (this.mapLoaded === false) {
             return true;
         }
         const configKey = '_config';
         if (changedProps.has(configKey)) {
-            console.info('config changed');
             const previousConfig = changedProps.get(configKey);
             if (previousConfig) {
                 if (this._config.zoom_level !== previousConfig.zoom_level) {
-                    console.info('zoom ' + this._config.zoom_level);
                     (_a = this.map) === null || _a === void 0 ? void 0 : _a.jumpTo({ center: [this.center_lon, this.center_lat], zoom: this._config.zoom_level });
                 }
                 if (this._config.center_longitude !== previousConfig.center_longitude) {
@@ -897,7 +889,6 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         }
         if ((changedProps.has('currentTime')) && (this.currentTime !== '')) {
             if (this.map !== undefined) {
-                console.info('shouldUpdate ' + this.currentTime);
                 const id = this.currentTime;
                 this.mapLayers.push(id);
                 this.radarTime.push(this.getRadarTimeString(this.currentTime));
@@ -924,7 +915,6 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         }
     }
     connectedCallback() {
-        console.info('Custom element added to page.');
         super.connectedCallback();
         this.updateStyle(this);
     }
@@ -934,7 +924,6 @@ let BomRadarCard = BomRadarCard_1 = class BomRadarCard extends i {
         (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
     }
     render() {
-        console.info('render');
         if (this._config.show_warning) {
             return this.showWarning('Show Warning');
         }
