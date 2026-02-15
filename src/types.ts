@@ -1,35 +1,41 @@
 import type { LovelaceCardConfig } from 'custom-card-helpers';
-// BoM Radar Card configuration
+
+export type BomMapStyle = 'Light' | 'Dark';
+
 export interface BomRasterRadarCardConfig extends LovelaceCardConfig {
-  type: 'custom:bom-raster-radar-card' | 'custom:bom-radar-card';
-
-  // General
-  name?: string;
+  type: 'custom:bom-raster-radar-card';
+  entity: string;
   card_title?: string;
-  map_style?: 'Light' | 'Dark';
+  map_style?: BomMapStyle;
   zoom_level?: number;
-  center_latitude?: number;
-  center_longitude?: number;
 
-  // Marker
   show_marker?: boolean;
-  marker_latitude?: number;
-  marker_longitude?: number;
 
-  // Controls
   show_zoom?: boolean;
   show_scale?: boolean;
   show_recenter?: boolean;
 
-  // Animation
   frame_count?: number;
   frame_delay?: number;
   restart_delay?: number;
   overlay_transparency?: number;
 
-  // Standard Lovelace flags
   show_warning?: boolean;
   show_error?: boolean;
   test_gui?: boolean;
   show_header_toggle?: boolean;
+}
+
+export interface BomGridOptions {
+  columns: number;
+  rows: number;
+  min_columns: number;
+  max_columns: number;
+  min_rows: number;
+  max_rows: number;
+}
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
 }

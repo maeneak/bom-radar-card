@@ -22,6 +22,12 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm run test:run
+
       # Use your CI build script (non-watch)
       - name: Build
         run: npm run build

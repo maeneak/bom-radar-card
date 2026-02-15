@@ -1,77 +1,93 @@
 # BOM Raster Radar Card
 
-A Home Assistant custom card that displays Bureau of Meteorology (BoM) rain radar data using WMTS raster tiles.
+A Home Assistant Lovelace custom card that shows animated rain radar frames (RainViewer) on a Leaflet map.
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/hacs/integration)
 [![GitHub Release][releases-shield]][releases]
 [![License][license-shield]](LICENSE)
-![Maintenance](https://img.shields.io/maintenance/yes/2025?style=for-the-badge)
 
-## Contributors
+## Version 5 highlights
 
-- Hayden Kliese <hayden@kliese.net>
-- Simon Ratcliffe <simon@makin-things.com>
+- Modern card API: `getGridOptions` and `getConfigForm`.
+- Sections grid defaults: 2 columns x 3 rows.
+- Native HA visual style and header behavior.
+- Entity-driven location: `entity` is now required (`device_tracker` or `person`).
+- Marker icon derived from entity icon semantics (icon-only marker).
+- Unit-test coverage for config/entity/radar helper logic.
 
-## Description
+## Breaking changes from v4
 
-BoM radar products (mobile app and https://weather.bom.gov.au/) are served as WMTS raster tiles.
-This card renders those tiles in Home Assistant with:
-
-- Light and dark basemap styles
-- Configurable frame animation
-- Optional map controls (zoom, recenter, scale)
-- Optional home marker and location override
-
-![BOM Raster Radar card](https://raw.githubusercontent.com/makin-things/bom-radar-card/master/bom-radar-card.gif)
+1. `entity` is required.
+2. Removed config keys:
+   - `center_latitude`
+   - `center_longitude`
+   - `marker_latitude`
+   - `marker_longitude`
+3. Legacy card type alias `custom:bom-radar-card` is removed.
+4. Minimum Home Assistant version is now `2025.2.0`.
 
 ## Configuration
 
-The card supports the visual editor, so you usually do not need to hand-edit YAML.
-
-If location fields are left blank, the card falls back to your Home Assistant default latitude/longitude.
-
-| Name                 | Type    | Requirement  | Description                                | Default                                |
-| -------------------- | ------- | ------------ | ------------------------------------------ | -------------------------------------- |
-| type                 | string  | **Required** | Card type                                  | `custom:bom-raster-radar-card`        |
-| card_title           | string  | **Optional** | Title text shown above the card            | no title                               |
-| map_style            | string  | **Optional** | Basemap style (`Light` or `Dark`)          | `Light`                                |
-| zoom_level           | number  | **Optional** | Initial map zoom (3-10)                    | `8`                                    |
-| center_latitude      | number  | **Optional** | Initial map center latitude                | HA default latitude                    |
-| center_longitude     | number  | **Optional** | Initial map center longitude               | HA default longitude                   |
-| show_marker          | boolean | **Optional** | Show home marker                           | `true`                                 |
-| marker_latitude      | number  | **Optional** | Marker latitude                            | same as center/HA default              |
-| marker_longitude     | number  | **Optional** | Marker longitude                           | same as center/HA default              |
-| frame_count          | number  | **Optional** | Number of radar frames in loop             | `7`                                    |
-| frame_delay          | number  | **Optional** | Delay between frames (ms)                  | `250`                                  |
-| restart_delay        | number  | **Optional** | Pause on final frame before restart (ms)   | `1000`                                 |
-| overlay_transparency | number  | **Optional** | Radar overlay transparency percent (0-90)  | `0`                                    |
-| show_zoom            | boolean | **Optional** | Show zoom control (top-right)              | `true`                                 |
-| show_recenter        | boolean | **Optional** | Show recenter control (bottom-right)       | `true`                                 |
-| show_scale           | boolean | **Optional** | Show scale control (bottom-left)           | `true`                                 |
+| Name | Type | Required | Description | Default |
+| --- | --- | --- | --- | --- |
+| `type` | string | Yes | Card type | `custom:bom-raster-radar-card` |
+| `entity` | string | Yes | Tracker entity (`device_tracker.*` or `person.*`) | none |
+| `card_title` | string | No | Optional card header title | entity friendly name |
+| `map_style` | string | No | `Light` or `Dark` basemap | `Light` |
+| `zoom_level` | number | No | Initial zoom (3-10) | `8` |
+| `show_marker` | boolean | No | Show tracked marker | `true` |
+| `show_zoom` | boolean | No | Show zoom control | `true` |
+| `show_recenter` | boolean | No | Show recenter control | `true` |
+| `show_scale` | boolean | No | Show scale control | `true` |
+| `frame_count` | number | No | Number of radar frames in loop | `7` |
+| `frame_delay` | number | No | Delay between frames (ms) | `250` |
+| `restart_delay` | number | No | Pause on last frame (ms) | `1000` |
+| `overlay_transparency` | number | No | Radar transparency 0-90 (%) | `0` |
 
 ## Example
 
 ```yaml
 type: custom:bom-raster-radar-card
+entity: device_tracker.pixel_phone
 card_title: Rain Radar
 map_style: Light
 zoom_level: 8
 frame_count: 7
 frame_delay: 250
 restart_delay: 1000
-overlay_transparency: 0
-show_zoom: true
+overlay_transparency: 10
 show_marker: true
+show_zoom: true
 show_recenter: true
 show_scale: true
 ```
+
+## Migration example
+
+### v4
+
+```yaml
+type: custom:bom-radar-card
+center_latitude: -33.86
+center_longitude: 151.2
+marker_latitude: -33.86
+marker_longitude: 151.2
+```
+
+### v5
+
+```yaml
+type: custom:bom-raster-radar-card
+entity: device_tracker.phone
+```
+
+The map initializes center from the entity if valid, and falls back to Home Assistant home coordinates if not.
 
 ## Installation
 
 ### HACS
 
-Install via HACS as usual.
-If your resource is not auto-added, add:
+Install from HACS, then confirm resource:
 
 ```yaml
 resources:
@@ -81,19 +97,9 @@ resources:
 
 ### Manual
 
-Download release files and place them in:
+Place release files in:
 
 `config/www/community/bom-raster-radar-card/`
-
-Expected files:
-
-```text
-bom-raster-radar-card.js
-assets/home-circle-dark.svg
-assets/home-circle-light.svg
-assets/radar-colour-bar.png
-assets/recenter.png
-```
 
 Then add:
 
@@ -103,21 +109,14 @@ resources:
     type: module
 ```
 
-## Migration Notes
+## Development
 
-- New primary card type: `custom:bom-raster-radar-card`
-- New primary JS file: `bom-raster-radar-card.js`
-- Backward compatibility is kept for existing dashboards using `custom:bom-radar-card`
-
-## Known Issues
-
-- Marker drift after editing card settings:
-  Occasionally after editing/saving, the marker may look slightly offset in preview/live views.
-  Refresh the browser or Home Assistant app to correct it.
-
-## Acknowledgements
-
-A major rewrite of this card was provided by Hayden Kliese <hayden@kliese.net>.
+```bash
+npm install
+npm run lint
+npm run test:run
+npm run build
+```
 
 [license-shield]: https://img.shields.io/github/license/makin-things/bom-radar-card.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/makin-things/bom-radar-card.svg?style=for-the-badge

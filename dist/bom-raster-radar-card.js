@@ -70,284 +70,217 @@ const t=t=>(e,o)=>{void 0!==o?o.addInitializer(()=>{customElements.define(t,e);}
  * SPDX-License-Identifier: BSD-3-Clause
  */function r(r){return n({...r,state:!0,attribute:!1})}
 
-let BomRasterRadarCardEditor = class BomRasterRadarCardEditor extends i {
-    constructor() {
-        super(...arguments);
-        this._config = this._mergeWithDefaults();
-        // ---------- Labels & helpers ----------
-        this._computeLabel = (schema) => {
-            var _a;
-            const map = {
-                card_title: 'Card Title',
-                map_style: 'Map Style',
-                zoom_level: 'Zoom Level',
-                center_latitude: 'Map Centre Latitude',
-                center_longitude: 'Map Centre Longitude',
-                show_marker: 'Show Marker',
-                marker_latitude: 'Marker Latitude',
-                marker_longitude: 'Marker Longitude',
-                frame_count: 'Frame Count',
-                frame_delay: 'Frame Delay (ms)',
-                restart_delay: 'Restart Delay (ms)',
-                overlay_transparency: 'Overlay Transparency',
-                show_zoom: 'Show Zoom',
-                show_recenter: 'Show Recenter',
-                show_scale: 'Show Scale',
-            };
-            return (_a = map[schema.name]) !== null && _a !== void 0 ? _a : schema.name;
-        };
-        this._computeHelper = (schema) => {
-            const help = {
-                map_style: 'Light uses BoM vector tiles - Dark uses Mapbox dark style',
-                zoom_level: 'Initial zoom from 3 to 10',
-                frame_count: 'How many frames in the loop',
-                frame_delay: 'Delay between frames',
-                restart_delay: 'Pause on the last frame before looping',
-                overlay_transparency: 'Reduce the radar fill opacity to reveal the map (0%–90%)',
-                show_recenter: 'Adds a control to jump back to your center and zoom',
-            };
-            return help[schema.name];
-        };
-    }
-    _mergeWithDefaults(config = {}) {
-        const defaults = {
-            map_style: 'Light',
-            zoom_level: 8,
-            frame_count: 7,
-            frame_delay: 250,
-            restart_delay: 1000,
-            overlay_transparency: 0,
-            show_zoom: true,
-            show_marker: true,
-            show_recenter: true,
-            show_scale: true,
-        };
-        return Object.assign(Object.assign(Object.assign({}, defaults), config), { type: 'custom:bom-raster-radar-card' });
-    }
-    setConfig(config) {
-        // Merge defaults so editor always has values to show
-        this._config = this._mergeWithDefaults(config);
-        this.requestUpdate();
-    }
-    // ---------- Schemas ----------
-    _buildSchemas() {
-        const overview = [
-            { name: 'card_title', selector: { text: {} } },
-            {
-                name: 'map_style',
-                selector: {
-                    select: {
-                        mode: 'dropdown',
-                        options: [
-                            { value: 'Light', label: 'Light' },
-                            { value: 'Dark', label: 'Dark' },
-                        ],
-                    },
-                },
-            },
-            {
-                name: 'zoom_level',
-                selector: {
-                    number: {
-                        min: 3,
-                        max: 10,
-                        step: 1,
-                        mode: 'box',
-                    },
-                },
-            },
-        ];
-        const location = [
-            {
-                name: 'center_latitude',
-                selector: { text: { inputmode: 'decimal' } },
-                context: { domain: 'lat' },
-                helper: '−90 to 90',
-            },
-            {
-                name: 'center_longitude',
-                selector: { text: { inputmode: 'decimal' } },
-                context: { domain: 'lon' },
-                helper: '−90 to 90',
-            },
-            { name: 'show_marker', selector: { boolean: {} } },
-            {
-                name: 'marker_latitude',
-                selector: { text: { inputmode: 'decimal' } },
-                context: { domain: 'lat' },
-                helper: '−90 to 90',
-            },
-            {
-                name: 'marker_longitude',
-                selector: { text: { inputmode: 'decimal' } },
-                context: { domain: 'lon' },
-                helper: '−90 to 90',
-            },
-        ];
-        const animation = [
-            { name: 'frame_count', selector: { number: { mode: 'box', min: 1, max: 60, step: 1 } } },
-            { name: 'frame_delay', selector: { number: { mode: 'box', min: 0, max: 5000, step: 10 } } },
-            { name: 'restart_delay', selector: { number: { mode: 'box', min: 0, max: 10000, step: 10 } } },
-            {
-                name: 'overlay_transparency',
-                selector: { number: { mode: 'slider', min: 0, max: 90, step: 5, unit_of_measurement: '%' } },
-            },
-        ];
-        const controls = [
-            { name: 'show_zoom', selector: { boolean: {} } },
-            { name: 'show_recenter', selector: { boolean: {} } },
-            { name: 'show_scale', selector: { boolean: {} } },
-        ];
-        return { overview, location, animation, controls };
-    }
-    // ---------- Render ----------
-    render() {
-        if (!this.hass)
-            return b ``;
-        const schemas = this._buildSchemas();
-        return b `
-      <div class="editor">
-        <div class="section">
-          <h3>Overview</h3>
-          <ha-form
-            .hass=${this.hass}
-            .data=${this._config}
-            .schema=${schemas.overview}
-            .computeLabel=${this._computeLabel}
-            .computeHelper=${this._computeHelper}
-            @value-changed=${this._onValueChanged}
-          ></ha-form>
-        </div>
+const CARD_VERSION = '5.0.0';
+const CARD_TYPE = 'custom:bom-raster-radar-card';
 
-        <div class="section">
-          <h3>Location & Marker</h3>
-          <ha-form
-            .hass=${this.hass}
-            .data=${this._config}
-            .schema=${schemas.location}
-            .computeLabel=${this._computeLabel}
-            .computeHelper=${this._computeHelper}
-            @value-changed=${this._onValueChanged}
-          ></ha-form>
-        </div>
-
-        <div class="section">
-          <h3>Animation</h3>
-          <ha-form
-            .hass=${this.hass}
-            .data=${this._config}
-            .schema=${schemas.animation}
-            .computeLabel=${this._computeLabel}
-            .computeHelper=${this._computeHelper}
-            @value-changed=${this._onValueChanged}
-          ></ha-form>
-        </div>
-
-        <div class="section">
-          <h3>Controls</h3>
-          <ha-form
-            .hass=${this.hass}
-            .data=${this._config}
-            .schema=${schemas.controls}
-            .computeLabel=${this._computeLabel}
-            .computeHelper=${this._computeHelper}
-            @value-changed=${this._onValueChanged}
-          ></ha-form>
-        </div>
-      </div>
-    `;
-    }
-    // ---------- Change handling ----------
-    _onValueChanged(ev) {
-        var _a;
-        const detail = ev.detail;
-        const current = (_a = this._config) !== null && _a !== void 0 ? _a : this._mergeWithDefaults();
-        const toNumber = (value) => {
-            if (value === '' || value === null || value === undefined) {
-                return undefined;
-            }
-            const numeric = Number(value);
-            return Number.isFinite(numeric) ? numeric : undefined;
-        };
-        const toLatitude = (value) => {
-            const numeric = Number.parseFloat(String(value).trim());
-            if (!Number.isFinite(numeric))
-                return undefined;
-            return Math.max(-90, Math.min(90, numeric));
-        };
-        const toLongitude = (value) => {
-            const numeric = Number.parseFloat(String(value).trim());
-            if (!Number.isFinite(numeric))
-                return undefined;
-            return Math.max(-180, Math.min(180, numeric));
-        };
-        const applyField = (cfg, name, raw) => {
-            const mutable = Object.assign({}, cfg);
-            let value = raw;
-            if (name === 'zoom_level' ||
-                name === 'frame_count' ||
-                name === 'frame_delay' ||
-                name === 'restart_delay' ||
-                name === 'overlay_transparency') {
-                value = toNumber(raw);
-            }
-            else if (name === 'center_latitude' || name === 'marker_latitude') {
-                value = toLatitude(raw);
-            }
-            else if (name === 'center_longitude' || name === 'marker_longitude') {
-                value = toLongitude(raw);
-            }
-            if (value === undefined) {
-                delete mutable[name];
-            }
-            else {
-                mutable[name] = value;
-            }
-            return mutable;
-        };
-        let merged = current;
-        if (detail && 'name' in detail) {
-            merged = applyField(current, detail.name, detail.value);
-        }
-        else if (detail && typeof detail.value === 'object' && detail.value !== null) {
-            const entries = Object.entries(detail.value);
-            for (const [key, value] of entries) {
-                merged = applyField(merged, key, value);
-            }
-        }
-        merged.type = 'custom:bom-raster-radar-card';
-        this._config = merged;
-        this.dispatchEvent(new CustomEvent('config-changed', {
-            detail: { config: this._config },
-            bubbles: true,
-            composed: true,
-        }));
-    }
+const DEFAULT_FRAME_COUNT = 7;
+const DEFAULT_FRAME_DELAY = 250;
+const DEFAULT_RESTART_DELAY = 1000;
+const DEFAULT_ZOOM_LEVEL = 8;
+const DEFAULT_CENTER = {
+    latitude: -27.85,
+    longitude: 133.75,
 };
-// ---------- Styles ----------
-BomRasterRadarCardEditor.styles = i$3 `
-    .editor {
-      padding: 8px 16px;
+const GRID_OPTIONS = {
+    columns: 2,
+    rows: 3,
+    min_columns: 2,
+    max_columns: 3,
+    min_rows: 2,
+    max_rows: 4,
+};
+const LEGACY_LOCATION_KEYS = [
+    'center_latitude',
+    'center_longitude',
+    'marker_latitude',
+    'marker_longitude',
+];
+const CONFIG_FORM_SCHEMA = [
+    {
+        name: 'entity',
+        required: true,
+        selector: {
+            entity: {
+                filter: [{ domain: 'device_tracker' }, { domain: 'person' }],
+            },
+        },
+    },
+    { name: 'card_title', selector: { text: {} } },
+    {
+        name: 'map_style',
+        selector: {
+            select: {
+                mode: 'dropdown',
+                options: [
+                    { label: 'Light', value: 'Light' },
+                    { label: 'Dark', value: 'Dark' },
+                ],
+            },
+        },
+    },
+    { name: 'zoom_level', selector: { number: { mode: 'slider', min: 3, max: 10, step: 1 } } },
+    { name: 'show_marker', selector: { boolean: {} } },
+    { name: 'show_zoom', selector: { boolean: {} } },
+    { name: 'show_recenter', selector: { boolean: {} } },
+    { name: 'show_scale', selector: { boolean: {} } },
+    { name: 'frame_count', selector: { number: { mode: 'box', min: 1, max: 24, step: 1 } } },
+    { name: 'frame_delay', selector: { number: { mode: 'box', min: 100, max: 5000, step: 50 } } },
+    { name: 'restart_delay', selector: { number: { mode: 'box', min: 100, max: 10000, step: 50 } } },
+    {
+        name: 'overlay_transparency',
+        selector: { number: { mode: 'slider', min: 0, max: 90, step: 5, unit_of_measurement: '%' } },
+    },
+];
+const CONFIG_FORM_LABELS = {
+    entity: 'Tracker entity',
+    card_title: 'Title',
+    map_style: 'Map style',
+    zoom_level: 'Zoom level',
+    show_marker: 'Show marker',
+    show_zoom: 'Show zoom control',
+    show_recenter: 'Show recenter control',
+    show_scale: 'Show scale',
+    frame_count: 'Frame count',
+    frame_delay: 'Frame delay (ms)',
+    restart_delay: 'Restart delay (ms)',
+    overlay_transparency: 'Overlay transparency',
+};
+const CONFIG_FORM_HELPERS = {
+    entity: 'Used for initial center, live marker location, and marker icon.',
+    frame_count: 'Number of radar frames shown in the animation loop.',
+    overlay_transparency: '0% is fully opaque radar, 90% is highly transparent.',
+};
+const getConfigFormLabel = (schema) => {
+    var _a;
+    if (!schema.name) {
+        return '';
     }
-    .section {
-      margin: 12px 0;
+    return (_a = CONFIG_FORM_LABELS[schema.name]) !== null && _a !== void 0 ? _a : schema.name;
+};
+const getConfigFormHelper = (schema) => {
+    if (!schema.name) {
+        return undefined;
     }
-    .section h3 {
-      margin: 0 0 8px;
-      font-weight: 600;
+    return CONFIG_FORM_HELPERS[schema.name];
+};
+const toFiniteNumber = (value) => {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : undefined;
+};
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+const sanitizeMapStyle = (value) => (value === 'Dark' ? 'Dark' : 'Light');
+const sanitizeEntity = (value) => (typeof value === 'string' ? value.trim() : '');
+const normalizeConfig = (config, options = {}) => {
+    const entity = sanitizeEntity(config.entity);
+    if (options.requireEntity && entity.length === 0) {
+        throw new Error('Required configuration missing: "entity" must be set to a device_tracker or person entity.');
     }
-  `;
-__decorate([
-    n({ attribute: false })
-], BomRasterRadarCardEditor.prototype, "hass", void 0);
-__decorate([
-    r()
-], BomRasterRadarCardEditor.prototype, "_config", void 0);
-BomRasterRadarCardEditor = __decorate([
-    t('bom-raster-radar-card-editor')
-], BomRasterRadarCardEditor);
+    const zoom = toFiniteNumber(config.zoom_level);
+    const frameCount = toFiniteNumber(config.frame_count);
+    const frameDelay = toFiniteNumber(config.frame_delay);
+    const restartDelay = toFiniteNumber(config.restart_delay);
+    const overlayTransparency = toFiniteNumber(config.overlay_transparency);
+    return {
+        type: CARD_TYPE,
+        entity,
+        card_title: typeof config.card_title === 'string' && config.card_title.trim().length > 0 ? config.card_title : undefined,
+        map_style: sanitizeMapStyle(config.map_style),
+        zoom_level: zoom !== undefined ? clamp(Math.round(zoom), 3, 10) : DEFAULT_ZOOM_LEVEL,
+        show_marker: config.show_marker !== false,
+        show_zoom: config.show_zoom !== false,
+        show_scale: config.show_scale !== false,
+        show_recenter: config.show_recenter !== false,
+        frame_count: frameCount !== undefined ? clamp(Math.round(frameCount), 1, 24) : DEFAULT_FRAME_COUNT,
+        frame_delay: frameDelay !== undefined ? clamp(Math.round(frameDelay), 100, 5000) : DEFAULT_FRAME_DELAY,
+        restart_delay: restartDelay !== undefined ? clamp(Math.round(restartDelay), 100, 10000) : DEFAULT_RESTART_DELAY,
+        overlay_transparency: overlayTransparency !== undefined ? clamp(overlayTransparency, 0, 90) : 0,
+    };
+};
+const pickStubEntity = (hass, entities) => {
+    var _a, _b;
+    const allEntities = entities !== null && entities !== void 0 ? entities : Object.keys((_a = hass === null || hass === void 0 ? void 0 : hass.states) !== null && _a !== void 0 ? _a : {});
+    const trackerEntity = (_b = allEntities.find((entityId) => entityId.startsWith('device_tracker.'))) !== null && _b !== void 0 ? _b : allEntities.find((entityId) => entityId.startsWith('person.'));
+    return trackerEntity !== null && trackerEntity !== void 0 ? trackerEntity : 'device_tracker.example';
+};
+const getLegacyLocationKeys = (config) => LEGACY_LOCATION_KEYS.filter((key) => key in config);
 
-const CARD_VERSION = '4.1.0';
+const isSupportedEntityDomain = (entityId) => entityId.startsWith('device_tracker.') || entityId.startsWith('person.');
+const toBoundedNumber = (value, min, max) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+        return undefined;
+    }
+    if (numeric < min || numeric > max) {
+        return undefined;
+    }
+    return numeric;
+};
+const coordinatesFromState = (state) => {
+    if (!(state === null || state === void 0 ? void 0 : state.attributes)) {
+        return undefined;
+    }
+    const latitude = toBoundedNumber(state.attributes.latitude, -90, 90);
+    const longitude = toBoundedNumber(state.attributes.longitude, -180, 180);
+    if (latitude === undefined || longitude === undefined) {
+        return undefined;
+    }
+    return { latitude, longitude };
+};
+const resolveEntityCoordinates = (hass, entityId) => {
+    const state = hass.states[entityId];
+    return coordinatesFromState(state);
+};
+const resolveHomeCoordinates = (hass) => {
+    const latitude = toBoundedNumber(hass.config.latitude, -90, 90);
+    const longitude = toBoundedNumber(hass.config.longitude, -180, 180);
+    if (latitude === undefined || longitude === undefined) {
+        return undefined;
+    }
+    return { latitude, longitude };
+};
+const resolvePreferredCoordinates = (hass, entityId) => {
+    const entityCoordinates = resolveEntityCoordinates(hass, entityId);
+    if (entityCoordinates) {
+        return Object.assign(Object.assign({}, entityCoordinates), { source: 'entity' });
+    }
+    const homeCoordinates = resolveHomeCoordinates(hass);
+    if (homeCoordinates) {
+        return Object.assign(Object.assign({}, homeCoordinates), { source: 'home' });
+    }
+    return Object.assign(Object.assign({}, DEFAULT_CENTER), { source: 'default' });
+};
+const defaultIconForEntity = (entityId, stateValue) => {
+    if (entityId.startsWith('person.')) {
+        return stateValue === 'home' ? 'mdi:home-account' : 'mdi:account-circle';
+    }
+    if (entityId.startsWith('device_tracker.')) {
+        return stateValue === 'home' ? 'mdi:home-map-marker' : 'mdi:crosshairs-gps';
+    }
+    return 'mdi:map-marker';
+};
+const resolveEntityIcon = (hass, entityId) => {
+    var _a, _b;
+    const state = hass.states[entityId];
+    const entityIcon = (_a = state === null || state === void 0 ? void 0 : state.attributes) === null || _a === void 0 ? void 0 : _a.icon;
+    if (typeof entityIcon === 'string' && entityIcon.trim().length > 0) {
+        return entityIcon;
+    }
+    return defaultIconForEntity(entityId, String((_b = state === null || state === void 0 ? void 0 : state.state) !== null && _b !== void 0 ? _b : ''));
+};
+const resolveEntityName = (hass, entityId) => {
+    var _a, _b;
+    const friendlyName = (_b = (_a = hass.states[entityId]) === null || _a === void 0 ? void 0 : _a.attributes) === null || _b === void 0 ? void 0 : _b.friendly_name;
+    if (typeof friendlyName === 'string' && friendlyName.trim().length > 0) {
+        return friendlyName;
+    }
+    return entityId;
+};
+const didCoordinatesChange = (previous, next) => {
+    if (!previous) {
+        return true;
+    }
+    return previous.latitude !== next.latitude || previous.longitude !== next.longitude;
+};
 
 var commonjsGlobal = typeof globalThis !== 'undefined' ? globalThis : typeof window !== 'undefined' ? window : typeof global !== 'undefined' ? global : typeof self !== 'undefined' ? self : {};
 
@@ -14868,656 +14801,681 @@ leafletSrc.exports;
 
 var leafletSrcExports = leafletSrc.exports;
 
-var _a;
-var BomRasterRadarCard_1;
-console.info(`%c  BOM-RASTER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `, 'color: orange; font-weight: bold; background: black', 'color: white; font-weight: bold; background: dimgray');
-/* ── RainViewer API constants ── */
-const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
-const RAINVIEWER_COLOR_SCHEME = 2; // rainbow
-const RAINVIEWER_SMOOTH = 1;
-const RAINVIEWER_SNOW = 0;
-/** Custom Leaflet control – Recenter button */
 class RecenterControl extends leafletSrcExports.Control {
-    constructor(getCenter, getZoom, options) {
+    constructor(options) {
         super(options);
-        this._getCenter = getCenter;
-        this._getZoom = getZoom;
+        this.onRecenter = options.onRecenter;
     }
-    onAdd(map) {
-        this._mapRef = map;
+    onAdd() {
         const container = leafletSrcExports.DomUtil.create('div', 'leaflet-bar leaflet-control');
         const button = leafletSrcExports.DomUtil.create('a', 'recenter-btn', container);
         button.href = '#';
         button.title = 'Recenter map';
         button.role = 'button';
         button.setAttribute('aria-label', 'Recenter map');
+        button.innerHTML = '<span aria-hidden="true">◎</span>';
         leafletSrcExports.DomEvent.disableClickPropagation(container);
-        leafletSrcExports.DomEvent.on(button, 'click', (e) => {
-            var _a;
-            leafletSrcExports.DomEvent.preventDefault(e);
-            (_a = this._mapRef) === null || _a === void 0 ? void 0 : _a.setView(this._getCenter(), this._getZoom());
+        leafletSrcExports.DomEvent.on(button, 'click', (event) => {
+            leafletSrcExports.DomEvent.preventDefault(event);
+            this.onRecenter();
         });
         return container;
     }
-    onRemove() {
-        this._mapRef = undefined;
+}
+const escapeHtml = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+class MapController {
+    constructor(options) {
+        this.options = options;
+        this.radarTileLayers = new Map();
+        this.map = leafletSrcExports.map(options.container, {
+            center: options.center,
+            zoom: options.zoom,
+            minZoom: 3,
+            maxZoom: 10,
+            maxBounds: leafletSrcExports.latLngBounds([-47, 109], [-7, 158.1]),
+            maxBoundsViscosity: 1.0,
+            attributionControl: false,
+            zoomControl: false,
+        });
+        this.setMapStyle(options.mapStyle);
+        if (options.showScale) {
+            leafletSrcExports.control
+                .scale({
+                metric: !options.imperialScale,
+                imperial: options.imperialScale,
+                position: 'bottomleft',
+            })
+                .addTo(this.map);
+        }
+        if (options.showZoom) {
+            leafletSrcExports.control.zoom({ position: 'topright' }).addTo(this.map);
+        }
+        if (options.showRecenter) {
+            this.map.addControl(new RecenterControl({ position: 'bottomright', onRecenter: options.onRecenter }));
+        }
+    }
+    setMapStyle(style) {
+        const tileUrl = style === 'Dark'
+            ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
+            : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
+        if (this.baseLayer) {
+            this.map.removeLayer(this.baseLayer);
+        }
+        this.baseLayer = leafletSrcExports.tileLayer(tileUrl, {
+            subdomains: 'abcd',
+            maxZoom: 19,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        });
+        this.baseLayer.addTo(this.map);
+    }
+    setView(center, zoom) {
+        this.map.setView(center, zoom);
+    }
+    getZoom() {
+        return this.map.getZoom();
+    }
+    invalidateSize() {
+        this.map.invalidateSize();
+    }
+    setMarker(position, icon, visible) {
+        var _a;
+        if (!visible) {
+            (_a = this.marker) === null || _a === void 0 ? void 0 : _a.remove();
+            return;
+        }
+        const markerIcon = leafletSrcExports.divIcon({
+            className: 'tracker-marker-wrapper',
+            html: `<div class="tracker-marker"><ha-icon icon="${escapeHtml(icon)}"></ha-icon></div>`,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15],
+        });
+        if (!this.marker) {
+            this.marker = leafletSrcExports.marker(position, { icon: markerIcon });
+            this.marker.addTo(this.map);
+            return;
+        }
+        this.marker.setLatLng(position);
+        this.marker.setIcon(markerIcon);
+        this.marker.addTo(this.map);
+    }
+    setRadarLayer(layerId, tileUrl) {
+        if (this.radarTileLayers.has(layerId)) {
+            return;
+        }
+        const layer = leafletSrcExports.tileLayer(tileUrl, {
+            opacity: 0,
+            tileSize: 256,
+            maxNativeZoom: 7,
+            maxZoom: 10,
+        });
+        layer.addTo(this.map);
+        this.radarTileLayers.set(layerId, layer);
+    }
+    removeRadarLayer(layerId) {
+        const layer = this.radarTileLayers.get(layerId);
+        if (!layer) {
+            return;
+        }
+        this.map.removeLayer(layer);
+        this.radarTileLayers.delete(layerId);
+    }
+    setRadarLayerOpacity(layerId, opacity) {
+        var _a;
+        (_a = this.radarTileLayers.get(layerId)) === null || _a === void 0 ? void 0 : _a.setOpacity(opacity);
+    }
+    clearRadarLayers(layerIds) {
+        for (const layerId of layerIds) {
+            this.removeRadarLayer(layerId);
+        }
+    }
+    destroy() {
+        var _a;
+        (_a = this.marker) === null || _a === void 0 ? void 0 : _a.remove();
+        for (const layerId of this.radarTileLayers.keys()) {
+            this.removeRadarLayer(layerId);
+        }
+        this.map.remove();
     }
 }
+
+const RAINVIEWER_API = 'https://api.rainviewer.com/public/weather-maps.json';
+const RAINVIEWER_DEFAULT_HOST = 'https://tilecache.rainviewer.com';
+const RAINVIEWER_COLOR_SCHEME = 2;
+const RAINVIEWER_SMOOTH = 1;
+const RAINVIEWER_SNOW = 0;
+const buildRadarTileUrl = (host, path) => `${host}${path}/256/{z}/{x}/{y}/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_SMOOTH}_${RAINVIEWER_SNOW}.png`;
+const fetchRadarSnapshot = async (fetcher = fetch) => {
+    var _a, _b, _c;
+    const response = await fetcher(RAINVIEWER_API);
+    if (!response.ok) {
+        throw new Error(`RainViewer API returned ${response.status}`);
+    }
+    const data = (await response.json());
+    const host = (_a = data.host) !== null && _a !== void 0 ? _a : RAINVIEWER_DEFAULT_HOST;
+    const rawFrames = (_c = (_b = data.radar) === null || _b === void 0 ? void 0 : _b.past) !== null && _c !== void 0 ? _c : [];
+    if (rawFrames.length === 0) {
+        throw new Error('No radar frames available');
+    }
+    const frames = rawFrames.map((frame) => {
+        const timeMs = frame.time * 1000;
+        const timestampIso = new Date(timeMs).toISOString();
+        return {
+            id: timestampIso,
+            timestampIso,
+            timeMs,
+            path: frame.path,
+        };
+    });
+    return {
+        host,
+        frames,
+        latestTimeMs: frames[frames.length - 1].timeMs,
+    };
+};
+const formatRadarTimestamp = (isoTime) => {
+    const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const x = new Date(isoTime);
+    return `${weekday[x.getDay()]} ${month[x.getMonth()]} ${x.getDate().toString().padStart(2, '0')} ${x
+        .getHours()
+        .toString()
+        .padStart(2, '0')}:${x.getMinutes().toString().padStart(2, '0')}`;
+};
+const getNextSnapshotDelayMs = (latestTimeMs, nowMs = Date.now()) => {
+    const nextAvailableTime = latestTimeMs + 10 * 60 * 1000 + 15 * 1000;
+    return Math.max(nextAvailableTime - nowMs, 5000);
+};
+const getRetryDelayMs = (retryCount) => Math.min(5000 * 2 ** retryCount, 60000);
+
+const cardStyles = i$3 `
+  :host {
+    display: block;
+  }
+
+  ha-card {
+    overflow: hidden;
+  }
+
+  .card-root {
+    position: relative;
+  }
+
+  .map-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    background: var(--disabled-color);
+  }
+
+  .map {
+    position: absolute;
+    inset: 0;
+  }
+
+  .progress-track {
+    height: 6px;
+    background-color: var(--divider-color);
+  }
+
+  .progress-bar {
+    height: 100%;
+    width: 0;
+    background: var(--primary-color);
+    transition: width 160ms linear;
+  }
+
+  .footer {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--secondary-text-color);
+    border-top: 1px solid var(--divider-color);
+  }
+
+  .timestamp {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .attribution {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .color-bar {
+    display: block;
+    width: 100%;
+    height: 8px;
+    object-fit: cover;
+    border-bottom: 1px solid var(--divider-color);
+  }
+
+  .tracker-marker {
+    width: 30px;
+    height: 30px;
+    border-radius: 9999px;
+    background: var(--card-background-color);
+    color: var(--state-icon-color, var(--primary-color));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--divider-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tracker-marker ha-icon {
+    --mdc-icon-size: 18px;
+    display: inline-flex;
+  }
+
+  .recenter-btn {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    line-height: 1;
+    color: var(--primary-text-color);
+    background: var(--card-background-color);
+    text-decoration: none;
+  }
+
+  .leaflet-control-zoom a {
+    color: var(--primary-text-color);
+    background: var(--card-background-color);
+  }
+`;
+
+var _a;
+console.info(`%c  BOM-RASTER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `, 'color: orange; font-weight: bold; background: black', 'color: white; font-weight: bold; background: dimgray');
+const RADAR_COLOR_BAR_URL = new URL('./assets/radar-colour-bar.png', import.meta.url).toString();
 window.customCards = (_a = window.customCards) !== null && _a !== void 0 ? _a : [];
 window.customCards.push({
     type: 'bom-raster-radar-card',
     name: 'BoM Raster Radar Card',
     description: 'A rain radar card using RainViewer composite radar imagery',
 });
-let BomRasterRadarCard = BomRasterRadarCard_1 = class BomRasterRadarCard extends i {
-    static async getConfigElement() {
-        return document.createElement('bom-raster-radar-card-editor');
-    }
-    static getStubConfig() {
-        return {};
-    }
-    setConfig(config) {
-        this._config = config;
-    }
-    // Sets the card size so HA knows how to put in columns
-    getCardSize() {
-        return 10;
-    }
-    /**
-     * Fetch radar timestamps from RainViewer's public API.
-     * Returns past 2 hours of composite radar frames at 10-minute intervals.
-     * RainViewer serves tiles with CORS enabled (Access-Control-Allow-Origin: *),
-     * so no proxy or workaround is needed.
-     */
-    async getRadarCapabilities() {
-        var _a, _b;
-        try {
-            const response = await fetch(RAINVIEWER_API);
-            if (!response.ok)
-                throw new Error(`RainViewer API returned ${response.status}`);
-            const data = await response.json();
-            this.rainviewerHost = data.host || this.rainviewerHost;
-            const pastFrames = (_b = (_a = data.radar) === null || _a === void 0 ? void 0 : _a.past) !== null && _b !== void 0 ? _b : [];
-            if (pastFrames.length === 0)
-                throw new Error('No radar frames available');
-            // Build timestamp → path mapping
-            this.pathForTimestamp.clear();
-            const timestamps = [];
-            for (const frame of pastFrames) {
-                const isoString = new Date(frame.time * 1000).toISOString();
-                timestamps.push(isoString);
-                this.pathForTimestamp.set(isoString, frame.path);
-            }
-            this.availableTimestamps = timestamps;
-            const latest = pastFrames[pastFrames.length - 1];
-            const latestMs = latest.time * 1000;
-            const newTime = new Date(latestMs).toISOString();
-            if (this.currentTime === newTime) {
-                this.scheduleCapabilitiesRetry();
-                return latestMs;
-            }
-            this.capabilitiesRetryCount = 0;
-            this.currentTime = newTime;
-            this.setNextUpdateTimeout(latestMs);
-            return latestMs;
-        }
-        catch (err) {
-            console.error('Error computing radar timestamps:', err);
-            this.scheduleCapabilitiesRetry();
-            return Promise.reject(err);
-        }
-    }
-    /**
-     * Format a Date as WMTS timestamp: YYYY-MM-DDTHH:MMZ (no seconds).
-     * BOM's tile server requires this exact format — timestamps with seconds
-     * (e.g. T10:20:00Z) return 404.
-     */
-    formatWmtsTimestamp(date) {
-        return date.toISOString();
-    }
-    scheduleCapabilitiesRetry() {
-        const delay = Math.min(5000 * Math.pow(2, this.capabilitiesRetryCount), 60000);
-        this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRasterRadarCard_1.MAX_RETRY_COUNT);
-        setTimeout(() => {
-            this.getRadarCapabilities();
-        }, delay);
-    }
-    normalizeOverlayTransparency(value) {
-        if (value === undefined) {
-            return 0;
-        }
-        const numeric = Number(value);
-        if (!Number.isFinite(numeric)) {
-            return 0;
-        }
-        const clamped = Math.min(Math.max(numeric, 0), 90);
-        return clamped;
-    }
-    getOverlayOpacity() {
-        const opacity = 1 - this.overlayTransparency / 100;
-        return Math.max(0, Math.min(1, opacity));
-    }
-    applyOverlayOpacityToLayers() {
-        this.mapLayers.forEach((layerId, index) => {
-            const layer = this.radarTileLayers.get(layerId);
-            if (!layer)
-                return;
-            const targetOpacity = index === this.frame ? this.getOverlayOpacity() : 0;
-            layer.setOpacity(targetOpacity);
-        });
-    }
-    /** Inject Leaflet's CSS into the shadow root so it renders correctly. */
-    injectLeafletCss() {
-        if (this.leafletCssInjected)
-            return;
-        const root = this.shadowRoot;
-        if (!root)
-            return;
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        root.appendChild(link);
-        this.leafletCssInjected = true;
-    }
+let BomRasterRadarCard = class BomRasterRadarCard extends i {
     constructor() {
-        super();
+        super(...arguments);
         this.isPanel = false;
-        this.start_time = 0;
-        this.frame_count = 12;
-        this.frame_delay = 250;
-        this.restart_delay = 1000;
-        this.mapLayers = [];
-        this.radarTileLayers = new Map();
-        this.radarTime = [];
-        this.pathForTimestamp = new Map();
-        this.rainviewerHost = 'https://tilecache.rainviewer.com';
-        this.frame = 0;
-        this.barsize = 0;
-        this.center_lon = 133.75;
-        this.center_lat = -27.85;
-        this.overlayTransparency = 0;
+        this.timestampLabel = 'Loading radar...';
+        this.progressPercent = 0;
         this.leafletCssInjected = false;
-        this.mapLoaded = false;
-        this.currentTime = '';
-        this.capabilitiesRetryCount = 0;
-        this.availableTimestamps = [];
+        this.isInitializingMap = false;
+        this.retryCount = 0;
+        this.radarHost = 'https://tilecache.rainviewer.com';
+        this.frameIndex = 0;
+        this.centerCoordinates = { latitude: -27.85, longitude: 133.75 };
+        this.layerIds = [];
+        this.radarFrames = [];
+        this.legacyWarningLogged = false;
+        this.unsupportedDomainWarningLogged = false;
     }
-    async firstUpdated() {
-        var _a;
-        this.injectLeafletCss();
-        await this.initMap();
-        const wrap = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map-wrap');
-        if (wrap && 'ResizeObserver' in window) {
-            const ro = new ResizeObserver(() => {
-                var _a, _b;
-                (_a = this.map) === null || _a === void 0 ? void 0 : _a.invalidateSize();
-                this.barsize = wrap.clientWidth / this.frame_count;
-                const progressBar = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById('progress-bar');
-                if (progressBar instanceof HTMLElement) {
-                    progressBar.style.width = `${(this.frame + 1) * this.barsize}px`;
-                }
-            });
-            ro.observe(wrap);
-            this.resizeObserver = ro;
-        }
+    static getGridOptions() {
+        return GRID_OPTIONS;
     }
-    getHomeAssistantLocation() {
-        var _a, _b, _c, _d;
-        const rawLat = (_b = (_a = this.hass) === null || _a === void 0 ? void 0 : _a.config) === null || _b === void 0 ? void 0 : _b.latitude;
-        const rawLon = (_d = (_c = this.hass) === null || _c === void 0 ? void 0 : _c.config) === null || _d === void 0 ? void 0 : _d.longitude;
-        const latitude = Number(rawLat);
-        const longitude = Number(rawLon);
+    static getConfigForm() {
         return {
-            latitude: Number.isFinite(latitude) ? latitude : undefined,
-            longitude: Number.isFinite(longitude) ? longitude : undefined,
+            schema: CONFIG_FORM_SCHEMA,
+            computeLabel: getConfigFormLabel,
+            computeHelper: getConfigFormHelper,
         };
     }
-    resolveCoordinate(configured, fallback, defaultValue) {
-        if (configured !== undefined && !Number.isNaN(configured)) {
-            return configured;
-        }
-        if (fallback !== undefined && !Number.isNaN(fallback)) {
-            return fallback;
-        }
-        return defaultValue;
+    static getStubConfig(hass, entities) {
+        return normalizeConfig({
+            type: CARD_TYPE,
+            entity: pickStubEntity(hass, entities),
+        }, { requireEntity: true });
     }
-    createRecenterControl() {
-        const getCenter = () => [this.center_lat, this.center_lon];
-        const getZoom = () => { var _a, _b, _c; return (_c = (_a = this._config.zoom_level) !== null && _a !== void 0 ? _a : (_b = this.map) === null || _b === void 0 ? void 0 : _b.getZoom()) !== null && _c !== void 0 ? _c : 4; };
-        return new RecenterControl(getCenter, getZoom, { position: 'bottomright' });
+    setConfig(config) {
+        const legacyKeys = getLegacyLocationKeys(config);
+        if (legacyKeys.length > 0 && !this.legacyWarningLogged) {
+            console.warn(`[bom-raster-radar-card] v5 removed the following config keys: ${legacyKeys.join(', ')}. Use "entity" instead for location.`);
+            this.legacyWarningLogged = true;
+        }
+        this._config = normalizeConfig(config, { requireEntity: true });
     }
-    async initMap() {
-        var _a, _b, _c, _d, _e;
-        const t = await this.getRadarCapabilities();
-        this.frame_count = this._config.frame_count !== undefined ? this._config.frame_count : this.frame_count;
-        this.frame_delay = this._config.frame_delay !== undefined ? this._config.frame_delay : this.frame_delay;
-        this.restart_delay = this._config.restart_delay !== undefined ? this._config.restart_delay : this.restart_delay;
-        this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
-        this.start_time = t - (this.frame_count - 1) * 10 * 60 * 1000;
-        const container = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map');
-        const isDark = this._config.map_style === 'Dark';
-        if (container) {
-            const haLocation = this.getHomeAssistantLocation();
-            this.center_lon = this.resolveCoordinate(this._config.center_longitude, haLocation.longitude, this.center_lon);
-            this.center_lat = this.resolveCoordinate(this._config.center_latitude, haLocation.latitude, this.center_lat);
-            this.map = leafletSrcExports.map(container, {
-                center: [this.center_lat, this.center_lon],
-                zoom: (_b = this._config.zoom_level) !== null && _b !== void 0 ? _b : 4,
-                minZoom: 3,
-                maxZoom: 10,
-                maxBounds: leafletSrcExports.latLngBounds([-47, 109], [-7, 158.1]),
-                maxBoundsViscosity: 1.0,
-                attributionControl: false,
-                zoomControl: false,
-            });
-            // Basemap
-            const baseTileUrl = isDark
-                ? 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png'
-                : 'https://cartodb-basemaps-{s}.global.ssl.fastly.net/light_all/{z}/{x}/{y}.png';
-            leafletSrcExports.tileLayer(baseTileUrl, {
-                subdomains: 'abcd',
-                maxZoom: 19,
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            }).addTo(this.map);
-            // Marker
-            const markerIconUrl = isDark
-                ? '/local/community/bom-raster-radar-card/home-circle-light.svg'
-                : '/local/community/bom-raster-radar-card/home-circle-dark.svg';
-            const markerIcon = leafletSrcExports.icon({
-                iconUrl: markerIconUrl,
-                iconSize: [15, 15],
-                iconAnchor: [7, 7],
-                className: 'marker-icon',
-            });
-            this.marker = leafletSrcExports.marker([0, 0], { icon: markerIcon });
-            const markerLat = this.resolveCoordinate(this._config.marker_latitude, this._config.show_marker ? haLocation.latitude : undefined, NaN);
-            const markerLon = this.resolveCoordinate(this._config.marker_longitude, this._config.show_marker ? haLocation.longitude : undefined, NaN);
-            if (this._config.show_marker && !Number.isNaN(markerLat) && !Number.isNaN(markerLon) && this.map) {
-                this.marker.setLatLng([markerLat, markerLon]);
-                this.marker.addTo(this.map);
-            }
-            // Controls
-            if (this._config.show_scale) {
-                const imperial = ((_e = (_d = (_c = this.hass) === null || _c === void 0 ? void 0 : _c.config) === null || _d === void 0 ? void 0 : _d.unit_system) === null || _e === void 0 ? void 0 : _e.length) === 'mi';
-                leafletSrcExports.control
-                    .scale({
-                    metric: !imperial,
-                    imperial,
-                    position: 'bottomleft',
-                })
-                    .addTo(this.map);
-            }
-            if (this._config.show_recenter) {
-                this.map.addControl(this.createRecenterControl());
-            }
-            if (this._config.show_zoom) {
-                leafletSrcExports.control.zoom({ position: 'topright' }).addTo(this.map);
-            }
-            this.loadMapContent();
-        }
+    getCardSize() {
+        return 6;
     }
-    getRadarTimeString(date) {
-        const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        const x = new Date(date);
-        return (weekday[x.getDay()] +
-            ' ' +
-            month[x.getMonth()] +
-            ' ' +
-            x.getDate().toString().padStart(2, '0') +
-            ' ' +
-            x.getHours().toString().padStart(2, '0') +
-            ':' +
-            x.getMinutes().toString().padStart(2, '0'));
-    }
-    loadMapContent() {
-        var _a, _b;
-        this.mapLoaded = true;
-        this.loadRadarLayers();
-        this.frame = this.mapLayers.length - 1;
-        // Show the latest frame
-        const currentLayer = this.radarTileLayers.get(this.mapLayers[this.frame]);
-        if (currentLayer) {
-            currentLayer.setOpacity(this.getOverlayOpacity());
-        }
-        this.applyOverlayOpacityToLayers();
-        this.frameTimer = setInterval(() => this.changeRadarFrame(), this.restart_delay);
-        const el = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map');
-        if (el) {
-            this.barsize = el.offsetWidth / this.frame_count;
-            const pg = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById('progress-bar');
-            if (pg) {
-                pg.style.width = el.offsetWidth + 'px';
-            }
-        }
-    }
-    setNextUpdateTimeout(time) {
-        const nextTime = time + 10 * 60 * 1000 + 15 * 1000;
-        setTimeout(() => {
-            this.getRadarCapabilities();
-        }, nextTime - Date.now());
-    }
-    addRadarLayer(id) {
-        if (this.map && id !== '' && this.mapLoaded) {
-            const path = this.pathForTimestamp.get(id);
-            if (!path)
-                return;
-            const tileUrl = `${this.rainviewerHost}${path}/256/{z}/{x}/{y}/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_SMOOTH}_${RAINVIEWER_SNOW}.png`;
-            const layer = leafletSrcExports.tileLayer(tileUrl, {
-                opacity: 0,
-                tileSize: 256,
-                maxNativeZoom: 7,
-                maxZoom: 10,
-            });
-            layer.addTo(this.map);
-            this.radarTileLayers.set(id, layer);
-        }
-    }
-    removeRadarLayer(id) {
-        const layer = this.radarTileLayers.get(id);
-        if (layer && this.map) {
-            this.map.removeLayer(layer);
-            this.radarTileLayers.delete(id);
-        }
-    }
-    loadRadarLayers() {
-        const timestamps = this.availableTimestamps.length > 0
-            ? this.availableTimestamps.slice(-this.frame_count)
-            : this.generateTimestamps();
-        for (const ts of timestamps) {
-            const id = ts;
-            this.mapLayers.push(id);
-            this.radarTime.push(this.getRadarTimeString(ts));
-            this.addRadarLayer(id);
-        }
-    }
-    generateTimestamps() {
-        const timestamps = [];
-        for (let i = 0; i < this.frame_count; i++) {
-            const time = this.start_time + i * 10 * 60 * 1000;
-            timestamps.push(this.formatWmtsTimestamp(new Date(time)));
-        }
-        return timestamps;
-    }
-    changeRadarFrame() {
-        var _a, _b;
-        if (this.map) {
-            const extra = this.mapLayers.length > this.frame_count;
-            let next = (this.frame + 1) % this.mapLayers.length;
-            const currentLayer = this.mapLayers[this.frame];
-            const nextLayer = this.mapLayers[next];
-            const currentTileLayer = this.radarTileLayers.get(currentLayer);
-            if (currentTileLayer) {
-                currentTileLayer.setOpacity(0);
-            }
-            const nextTileLayer = this.radarTileLayers.get(nextLayer);
-            if (nextTileLayer) {
-                nextTileLayer.setOpacity(this.getOverlayOpacity());
-            }
-            if (extra) {
-                const oldLayer = this.mapLayers.shift();
-                this.radarTime.shift();
-                if (oldLayer !== undefined) {
-                    this.removeRadarLayer(oldLayer);
-                }
-                next--;
-            }
-            this.frame = next;
-            const el = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('progress-bar');
-            if (el) {
-                el.style.width = (this.frame + 1) * this.barsize + 'px';
-            }
-            if (next === this.frame_count - 1) {
-                clearInterval(this.frameTimer);
-                this.frameTimer = setInterval(() => this.changeRadarFrame(), this.restart_delay);
-            }
-            else {
-                clearInterval(this.frameTimer);
-                this.frameTimer = setInterval(() => this.changeRadarFrame(), this.frame_delay);
-            }
-            const ts = (_b = this.shadowRoot) === null || _b === void 0 ? void 0 : _b.getElementById('timestamp');
-            if (ts) {
-                ts.innerHTML = this.radarTime[this.frame];
-            }
-        }
-    }
-    shouldUpdate(changedProps) {
-        var _a, _b, _c;
-        if (this.mapLoaded === false) {
-            return true;
-        }
-        const configKey = '_config';
-        if (changedProps.has(configKey)) {
-            const previousConfig = changedProps.get(configKey);
-            if (previousConfig) {
-                if (this._config.zoom_level !== previousConfig.zoom_level) {
-                    (_a = this.map) === null || _a === void 0 ? void 0 : _a.setView([this.center_lat, this.center_lon], this._config.zoom_level);
-                }
-                if (this._config.center_longitude !== previousConfig.center_longitude) {
-                    const haLocation = this.getHomeAssistantLocation();
-                    this.center_lon = this.resolveCoordinate(this._config.center_longitude, haLocation.longitude, 133.75);
-                    (_b = this.map) === null || _b === void 0 ? void 0 : _b.setView([this.center_lat, this.center_lon], this._config.zoom_level);
-                }
-                if (this._config.center_latitude !== previousConfig.center_latitude) {
-                    const haLocation = this.getHomeAssistantLocation();
-                    this.center_lat = this.resolveCoordinate(this._config.center_latitude, haLocation.latitude, -27.85);
-                    (_c = this.map) === null || _c === void 0 ? void 0 : _c.setView([this.center_lat, this.center_lon], this._config.zoom_level);
-                }
-                if (this._config.frame_delay !== previousConfig.frame_delay) {
-                    this.frame_delay =
-                        this._config.frame_delay === undefined || isNaN(this._config.frame_delay) ? 250 : this._config.frame_delay;
-                }
-                if (this._config.restart_delay !== previousConfig.restart_delay) {
-                    this.restart_delay =
-                        this._config.restart_delay === undefined || isNaN(this._config.restart_delay)
-                            ? 1000
-                            : this._config.restart_delay;
-                }
-                if (this._config.overlay_transparency !== previousConfig.overlay_transparency) {
-                    this.overlayTransparency = this.normalizeOverlayTransparency(this._config.overlay_transparency);
-                    this.applyOverlayOpacityToLayers();
-                }
-                if (this._config.show_marker !== previousConfig.show_marker ||
-                    this._config.marker_latitude !== previousConfig.marker_latitude ||
-                    this._config.marker_longitude !== previousConfig.marker_longitude) {
-                    if (this.marker) {
-                        if (this._config.show_marker) {
-                            const haLocation = this.getHomeAssistantLocation();
-                            const markerLat = this.resolveCoordinate(this._config.marker_latitude, haLocation.latitude, NaN);
-                            const markerLon = this.resolveCoordinate(this._config.marker_longitude, haLocation.longitude, NaN);
-                            if (!Number.isNaN(markerLat) && !Number.isNaN(markerLon) && this.map) {
-                                this.marker.setLatLng([markerLat, markerLon]);
-                                this.marker.addTo(this.map);
-                            }
-                            else {
-                                this.marker.remove();
-                            }
-                        }
-                        else {
-                            this.marker.remove();
-                        }
-                    }
-                }
-            }
-            return true;
-        }
-        if (changedProps.has('currentTime') && this.currentTime !== '') {
-            if (this.map) {
-                const id = this.currentTime;
-                this.mapLayers.push(id);
-                this.radarTime.push(this.getRadarTimeString(this.currentTime));
-                this.addRadarLayer(id);
-                this.applyOverlayOpacityToLayers();
-                return true;
-            }
-        }
-        return false;
-    }
-    updateStyle(elem) {
-        if (this._config.map_style === 'Dark') {
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--progress-bar-background', '#1C1C1C');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--progress-bar-color', 'steelblue');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--bottom-container-background', '#1C1C1C');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--bottom-container-color', '#DDDDDD');
-        }
-        else {
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--progress-bar-background', 'white');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--progress-bar-color', '#ccf2ff');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--bottom-container-background', 'white');
-            elem === null || elem === void 0 ? void 0 : elem.style.setProperty('--bottom-container-color', 'black');
-        }
-    }
-    connectedCallback() {
-        super.connectedCallback();
-        this.updateStyle(this);
-        // Leaflet doesn't need the projection matrix hack that Mapbox did,
-        // but we do need to invalidate the size after tab switches.
-        if (this.map) {
-            requestAnimationFrame(() => { var _a; return (_a = this.map) === null || _a === void 0 ? void 0 : _a.invalidateSize(); });
-        }
+    firstUpdated() {
+        this.injectLeafletCss();
+        this.observeMapContainerSize();
+        void this.initializeMapIfReady();
     }
     disconnectedCallback() {
         var _a;
         super.disconnectedCallback();
         (_a = this.resizeObserver) === null || _a === void 0 ? void 0 : _a.disconnect();
-        if (this.frameTimer) {
-            clearInterval(this.frameTimer);
+        this.teardownMap();
+    }
+    updated(changedProps) {
+        if (!this.hass || !this._config) {
+            return;
+        }
+        if (!isSupportedEntityDomain(this._config.entity) && !this.unsupportedDomainWarningLogged) {
+            console.warn(`[bom-raster-radar-card] "entity" should be a device_tracker or person. Received: ${this._config.entity}.`);
+            this.unsupportedDomainWarningLogged = true;
+        }
+        const configKey = '_config';
+        if (changedProps.has(configKey) && this.mapController) {
+            void this.rebuildMap();
+            return;
+        }
+        if (!this.mapController) {
+            void this.initializeMapIfReady();
+            return;
+        }
+        if (changedProps.has('hass')) {
+            this.updateMarkerFromEntity();
         }
     }
     render() {
-        if (this._config.show_warning) {
-            return this.showWarning('Show Warning');
-        }
-        const cardTitle = this._config.card_title !== undefined ? b `<div id="card-title">${this._config.card_title}</div>` : b ``;
+        const header = this.resolveHeader();
         return b `
-      <ha-card id="card">
-        ${cardTitle}
-        <div id="root">
-          <div id="color-bar">
-            <img
-              id="img-color-bar"
-              src="/local/community/bom-raster-radar-card/radar-colour-bar.png"
-              height="8"
-              style="vertical-align: top"
-            />
+      <ha-card .header=${header}>
+        <div class="card-root">
+          <img class="color-bar" src=${RADAR_COLOR_BAR_URL} alt="Radar intensity scale" />
+          <div class="map-wrap">
+            <div id="map" class="map"></div>
           </div>
-          <div id="map-wrap">
-            <div id="map"></div>
+          <div class="progress-track">
+            <div class="progress-bar" style=${`width: ${this.progressPercent}%;`}></div>
           </div>
-          <div id="div-progress-bar">
-            <div id="progress-bar"></div>
-          </div>
-          <div id="bottom-container" class="light-links">
-            <div id="timestampid" class="text-container">
-              <p id="timestamp"></p>
-            </div>
-            <div id="attribution-container" class="text-container-small" style="height: 32px; float: right;">
-              <span class="Map__Attribution-LjffR DKiFh"></span>
-            </div>
+          <div class="footer">
+            <span class="timestamp">${this.timestampLabel}</span>
+            <span class="attribution">Radar: RainViewer</span>
           </div>
         </div>
       </ha-card>
     `;
     }
-    showWarning(warning) {
-        return b ` <hui-warning>${warning}</hui-warning> `;
+    resolveHeader() {
+        if (!this._config) {
+            return 'BoM Radar';
+        }
+        if (this._config.card_title) {
+            return this._config.card_title;
+        }
+        if (!this.hass) {
+            return 'BoM Radar';
+        }
+        return resolveEntityName(this.hass, this._config.entity);
+    }
+    observeMapContainerSize() {
+        var _a;
+        const mapWrap = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.querySelector('.map-wrap');
+        if (!(mapWrap instanceof HTMLElement) || !('ResizeObserver' in window)) {
+            return;
+        }
+        this.resizeObserver = new ResizeObserver(() => {
+            var _a;
+            (_a = this.mapController) === null || _a === void 0 ? void 0 : _a.invalidateSize();
+        });
+        this.resizeObserver.observe(mapWrap);
+    }
+    injectLeafletCss() {
+        if (this.leafletCssInjected || !this.shadowRoot) {
+            return;
+        }
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+        this.shadowRoot.appendChild(link);
+        this.leafletCssInjected = true;
+    }
+    async initializeMapIfReady() {
+        var _a, _b, _c;
+        if (!this._config || !this.hass || this.mapController || this.isInitializingMap) {
+            return;
+        }
+        const mapElement = (_a = this.shadowRoot) === null || _a === void 0 ? void 0 : _a.getElementById('map');
+        if (!(mapElement instanceof HTMLElement)) {
+            return;
+        }
+        this.isInitializingMap = true;
+        try {
+            const center = resolvePreferredCoordinates(this.hass, this._config.entity);
+            this.centerCoordinates = {
+                latitude: center.latitude,
+                longitude: center.longitude,
+            };
+            this.mapController = new MapController({
+                container: mapElement,
+                center: [center.latitude, center.longitude],
+                zoom: (_b = this._config.zoom_level) !== null && _b !== void 0 ? _b : 8,
+                mapStyle: (_c = this._config.map_style) !== null && _c !== void 0 ? _c : 'Light',
+                showScale: this._config.show_scale !== false,
+                showZoom: this._config.show_zoom !== false,
+                showRecenter: this._config.show_recenter !== false,
+                imperialScale: this.hass.config.unit_system.length === 'mi',
+                onRecenter: () => {
+                    var _a;
+                    if (!this.mapController || !this._config) {
+                        return;
+                    }
+                    this.mapController.setView([this.centerCoordinates.latitude, this.centerCoordinates.longitude], (_a = this._config.zoom_level) !== null && _a !== void 0 ? _a : this.mapController.getZoom());
+                },
+            });
+            this.updateMarkerFromEntity();
+            await this.refreshRadarSnapshot(true);
+        }
+        catch (error) {
+            console.error('[bom-raster-radar-card] Failed to initialize map.', error);
+        }
+        finally {
+            this.isInitializingMap = false;
+        }
+    }
+    async rebuildMap() {
+        this.teardownMap();
+        await this.initializeMapIfReady();
+    }
+    teardownMap() {
+        var _a;
+        if (this.snapshotTimer) {
+            clearTimeout(this.snapshotTimer);
+            this.snapshotTimer = undefined;
+        }
+        if (this.frameTimer) {
+            clearTimeout(this.frameTimer);
+            this.frameTimer = undefined;
+        }
+        (_a = this.mapController) === null || _a === void 0 ? void 0 : _a.destroy();
+        this.mapController = undefined;
+        this.layerIds = [];
+        this.radarFrames = [];
+        this.frameIndex = 0;
+        this.progressPercent = 0;
+        this.timestampLabel = 'Loading radar...';
+        this.lastMarkerCoordinates = undefined;
+        this.retryCount = 0;
+    }
+    async refreshRadarSnapshot(resetFrames) {
+        var _a, _b, _c;
+        if (!this._config || !this.mapController) {
+            return;
+        }
+        try {
+            const snapshot = await fetchRadarSnapshot();
+            this.retryCount = 0;
+            this.radarHost = snapshot.host;
+            if (resetFrames || this.radarFrames.length === 0) {
+                this.replaceFrames(snapshot.frames.slice(-((_a = this._config.frame_count) !== null && _a !== void 0 ? _a : 7)));
+            }
+            else {
+                this.mergeNewFrames(snapshot.frames, (_b = this._config.frame_count) !== null && _b !== void 0 ? _b : 7);
+            }
+            this.applyVisibleFrame();
+            this.scheduleNextSnapshot(snapshot.latestTimeMs);
+            this.scheduleNextFrame((_c = this._config.restart_delay) !== null && _c !== void 0 ? _c : 1000);
+        }
+        catch (error) {
+            console.error('[bom-raster-radar-card] Failed to fetch radar frames.', error);
+            this.scheduleRetry();
+        }
+    }
+    replaceFrames(frames) {
+        if (!this.mapController) {
+            return;
+        }
+        this.mapController.clearRadarLayers(this.layerIds);
+        this.layerIds = [];
+        this.radarFrames = [];
+        for (const frame of frames) {
+            this.addFrame(frame);
+        }
+        this.frameIndex = this.radarFrames.length > 0 ? this.radarFrames.length - 1 : 0;
+    }
+    mergeNewFrames(allFrames, frameCount) {
+        const latestKnownId = this.radarFrames.length > 0 ? this.radarFrames[this.radarFrames.length - 1].id : undefined;
+        const latestKnownIndex = latestKnownId !== undefined ? allFrames.findIndex((frame) => frame.id === latestKnownId) : -1;
+        const framesToAdd = latestKnownIndex >= 0 ? allFrames.slice(latestKnownIndex + 1) : allFrames.slice(Math.max(allFrames.length - frameCount, 0));
+        if (framesToAdd.length === 0) {
+            return;
+        }
+        for (const frame of framesToAdd) {
+            this.addFrame(frame);
+        }
+        while (this.radarFrames.length > frameCount) {
+            const removed = this.radarFrames.shift();
+            const removedLayerId = this.layerIds.shift();
+            if (removedLayerId && this.mapController) {
+                this.mapController.removeRadarLayer(removedLayerId);
+            }
+            if (removed && this.frameIndex > 0) {
+                this.frameIndex -= 1;
+            }
+        }
+        this.frameIndex = this.radarFrames.length > 0 ? this.radarFrames.length - 1 : 0;
+    }
+    addFrame(frame) {
+        if (!this.mapController) {
+            return;
+        }
+        this.radarFrames.push(frame);
+        this.layerIds.push(frame.id);
+        this.mapController.setRadarLayer(frame.id, buildRadarTileUrl(this.radarHost, frame.path));
+    }
+    applyVisibleFrame() {
+        if (!this.mapController) {
+            return;
+        }
+        const overlayOpacity = this.getOverlayOpacity();
+        this.layerIds.forEach((layerId, layerIndex) => {
+            var _a;
+            (_a = this.mapController) === null || _a === void 0 ? void 0 : _a.setRadarLayerOpacity(layerId, layerIndex === this.frameIndex ? overlayOpacity : 0);
+        });
+        if (this.radarFrames.length === 0) {
+            this.timestampLabel = 'No radar data';
+            this.progressPercent = 0;
+            return;
+        }
+        const visibleFrame = this.radarFrames[this.frameIndex];
+        this.timestampLabel = formatRadarTimestamp(visibleFrame.timestampIso);
+        this.progressPercent = ((this.frameIndex + 1) / this.radarFrames.length) * 100;
+    }
+    getOverlayOpacity() {
+        var _a, _b;
+        const transparency = (_b = (_a = this._config) === null || _a === void 0 ? void 0 : _a.overlay_transparency) !== null && _b !== void 0 ? _b : 0;
+        const opacity = 1 - transparency / 100;
+        return Math.min(1, Math.max(0, opacity));
+    }
+    scheduleNextFrame(delayMs) {
+        if (this.frameTimer) {
+            clearTimeout(this.frameTimer);
+            this.frameTimer = undefined;
+        }
+        if (!this._config || this.radarFrames.length <= 1) {
+            return;
+        }
+        this.frameTimer = setTimeout(() => {
+            this.advanceFrame();
+        }, delayMs);
+    }
+    advanceFrame() {
+        var _a, _b;
+        if (!this._config || this.radarFrames.length === 0) {
+            return;
+        }
+        this.frameIndex = (this.frameIndex + 1) % this.radarFrames.length;
+        this.applyVisibleFrame();
+        const isLastFrame = this.frameIndex === this.radarFrames.length - 1;
+        const nextDelay = isLastFrame ? (_a = this._config.restart_delay) !== null && _a !== void 0 ? _a : 1000 : (_b = this._config.frame_delay) !== null && _b !== void 0 ? _b : 250;
+        this.scheduleNextFrame(nextDelay);
+    }
+    scheduleNextSnapshot(latestTimeMs) {
+        if (this.snapshotTimer) {
+            clearTimeout(this.snapshotTimer);
+            this.snapshotTimer = undefined;
+        }
+        const delay = getNextSnapshotDelayMs(latestTimeMs);
+        this.snapshotTimer = setTimeout(() => {
+            void this.refreshRadarSnapshot(false);
+        }, delay);
+    }
+    scheduleRetry() {
+        if (this.snapshotTimer) {
+            clearTimeout(this.snapshotTimer);
+            this.snapshotTimer = undefined;
+        }
+        const delay = getRetryDelayMs(this.retryCount);
+        this.retryCount += 1;
+        this.snapshotTimer = setTimeout(() => {
+            void this.refreshRadarSnapshot(this.radarFrames.length === 0);
+        }, delay);
+    }
+    updateMarkerFromEntity() {
+        if (!this._config || !this.hass || !this.mapController) {
+            return;
+        }
+        const resolved = resolvePreferredCoordinates(this.hass, this._config.entity);
+        const markerCoordinates = {
+            latitude: resolved.latitude,
+            longitude: resolved.longitude,
+        };
+        const icon = resolveEntityIcon(this.hass, this._config.entity);
+        const entityCoordinates = resolveEntityCoordinates(this.hass, this._config.entity);
+        const coordinatesChanged = didCoordinatesChange(this.lastMarkerCoordinates, markerCoordinates);
+        const markerVisible = this._config.show_marker !== false;
+        if (markerVisible && (coordinatesChanged || entityCoordinates === undefined || this.lastMarkerCoordinates === undefined)) {
+            this.mapController.setMarker([markerCoordinates.latitude, markerCoordinates.longitude], icon, true);
+            this.lastMarkerCoordinates = markerCoordinates;
+            return;
+        }
+        this.mapController.setMarker([markerCoordinates.latitude, markerCoordinates.longitude], icon, markerVisible);
     }
 };
-BomRasterRadarCard.styles = i$3 `
-    #card {
-      overflow: hidden;
-    }
-    .text-container {
-      font: 14px/1.5 'Helvetica Neue', Arial, Helvetica, sans-serif;
-      color: var(--bottom-container-color);
-      padding-left: 10px;
-      margin: 0;
-      position: static;
-      width: auto;
-    }
-    #root {
-      width: 100%;
-      position: relative;
-    }
-    #map-wrap {
-      width: 100%;
-      height: auto;
-      aspect-ratio: 1 / 1;
-      position: relative;
-      display: block;
-      box-sizing: border-box;
-      overflow: hidden;
-    }
-    #map {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-    }
-    #card-title {
-      margin: 8px 0px 4px 8px;
-      font-size: 1.5em;
-    }
-    #color-bar {
-      height: 8px;
-    }
-    #div-progress-bar {
-      height: 8px;
-      background-color: var(--progress-bar-background);
-    }
-    #progress-bar {
-      height: 8px;
-      width: 0;
-      background-color: var(--progress-bar-color);
-    }
-    #bottom-container {
-      min-height: 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background-color: var(--bottom-container-background);
-      padding: 2px 8px;
-      box-sizing: border-box;
-    }
-    .recenter-btn {
-      display: block;
-      width: 30px;
-      height: 30px;
-      background-image: url('/local/community/bom-raster-radar-card/recenter.png');
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 18px 18px;
-    }
-    .marker-icon {
-      display: block;
-      border: none;
-      padding: 0;
-    }
-  `;
-BomRasterRadarCard.MAX_RETRY_COUNT = 5;
-__decorate([
-    n({ type: Boolean, reflect: true })
-], BomRasterRadarCard.prototype, "isPanel", void 0);
+BomRasterRadarCard.styles = cardStyles;
 __decorate([
     n({ attribute: false })
 ], BomRasterRadarCard.prototype, "hass", void 0);
 __decorate([
     n({ attribute: false })
-], BomRasterRadarCard.prototype, "_config", void 0);
-__decorate([
-    n({ attribute: false })
 ], BomRasterRadarCard.prototype, "editMode", void 0);
 __decorate([
-    n({ attribute: false })
-], BomRasterRadarCard.prototype, "mapLoaded", void 0);
+    n({ type: Boolean, reflect: true })
+], BomRasterRadarCard.prototype, "isPanel", void 0);
 __decorate([
-    n()
-], BomRasterRadarCard.prototype, "currentTime", void 0);
-BomRasterRadarCard = BomRasterRadarCard_1 = __decorate([
+    n({ attribute: false })
+], BomRasterRadarCard.prototype, "_config", void 0);
+__decorate([
+    r()
+], BomRasterRadarCard.prototype, "timestampLabel", void 0);
+__decorate([
+    r()
+], BomRasterRadarCard.prototype, "progressPercent", void 0);
+BomRasterRadarCard = __decorate([
     t('bom-raster-radar-card')
 ], BomRasterRadarCard);
-if (!customElements.get('bom-radar-card')) {
-    customElements.define('bom-radar-card', BomRasterRadarCard);
-}
 
 export { BomRasterRadarCard };

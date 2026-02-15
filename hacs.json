@@ -2,5 +2,5 @@
   "name": "BOM Raster Radar Card",
   "render_readme": true,
   "filename": "bom-raster-radar-card.js",
-  "homeassistant": "2022.11.0"
+  "homeassistant": "2025.2.0"
 }
