@@ -15,7 +15,8 @@ console.info(
   'color: white; font-weight: bold; background: dimgray',
 );
 
-const radarCapabilities = 'https://api.weather.bom.gov.au/v1/radar/capabilities';
+const wmtsCapabilities = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/WMTSCapabilities.xml';
+const wmtsTileBase = 'https://api.bom.gov.au/apikey/v1/mapping/timeseries/wmts/1.0.0/atm_surf_air_precip_reflectivity_dbz/default';
 
 class RecenterControl implements mapboxgl.IControl {
   private container?: HTMLElement;
@@ -660,46 +661,77 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
     return 10;
   }
 
+  private capabilitiesRetryCount = 0;
+  private static readonly MAX_RETRY_COUNT = 5;
+  private availableTimestamps: string[] = [];
+
   async getRadarCapabilities(): Promise<number> {
     console.info('getRadarCapabilities ' + Date.now());
-    const headers = new Headers({
-      "Accept": "application/json",
-      "Accept-Encoding": "gzip",
-      "Sec-Fetch-Mode": "cors",
-      "Sec-Fetch-Site": "cross-site",
-    });
-    const response = await fetch(radarCapabilities, {
-      method: 'GET',
-      mode: 'cors',
-      headers: headers,
-    });
+    try {
+      const response = await fetch(wmtsCapabilities, {
+        method: 'GET',
+        mode: 'cors',
+      });
 
-    if (!response || !response.ok) {
-      setTimeout(() => { this.getRadarCapabilities(); }, 5000);
-      console.info('  failed');
-      return Promise.reject(response);
-    }
-
-    const data = await response.json();
-    let latest = '';
-    for (const obj in data.data.rain) {
-      if (data.data.rain[obj].type === 'observation') {
-        latest = data.data.rain[obj].time;
+      if (!response || !response.ok) {
+        console.warn('WMTS capabilities fetch failed: HTTP ' + response?.status);
+        this.scheduleCapabilitiesRetry();
+        return Promise.reject(response);
       }
+
+      this.capabilitiesRetryCount = 0;
+      const xmlText = await response.text();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(xmlText, 'application/xml');
+
+      // Find the radar reflectivity layer
+      const layers = xml.querySelectorAll('Layer');
+      let timestamps: string[] = [];
+      for (const layer of layers) {
+        const identifier = layer.querySelector('Identifier');
+        if (identifier?.textContent === 'atm_surf_air_precip_reflectivity_dbz') {
+          const dimension = layer.querySelector('Dimension');
+          const valueEl = dimension?.querySelector('Value');
+          if (valueEl?.textContent) {
+            timestamps = valueEl.textContent.split(',').map(s => s.trim()).filter(s => s.length > 0);
+          }
+          break;
+        }
+      }
+
+      if (timestamps.length === 0) {
+        console.warn('No radar timestamps found in WMTS capabilities');
+        this.scheduleCapabilitiesRetry();
+        return Promise.reject(new Error('No timestamps'));
+      }
+
+      this.availableTimestamps = timestamps;
+      const latest = timestamps[timestamps.length - 1];
+
+      const newTime = latest;
+      if (this.currentTime == newTime) {
+        this.scheduleCapabilitiesRetry();
+        return Date.parse(latest);
+      }
+
+      this.currentTime = newTime;
+      console.info('Latest ' + this.currentTime);
+
+      const t = Date.parse(latest);
+      this.setNextUpdateTimeout(t);
+      return t;
+    } catch (err) {
+      console.error('Error fetching WMTS capabilities:', err);
+      this.scheduleCapabilitiesRetry();
+      return Promise.reject(err);
     }
+  }
 
-    const newTime = latest;
-    if (this.currentTime == newTime) {
-      setTimeout(() => { this.getRadarCapabilities(); }, 5000);
-      return Date.parse(latest);
-    }
-
-    this.currentTime = newTime;
-    console.info('Latest ' + this.currentTime);
-
-    const t = Date.parse(latest);
-    this.setNextUpdateTimeout(t);
-    return t;
+  private scheduleCapabilitiesRetry(): void {
+    const delay = Math.min(5000 * Math.pow(2, this.capabilitiesRetryCount), 60000);
+    this.capabilitiesRetryCount = Math.min(this.capabilitiesRetryCount + 1, BomRadarCard.MAX_RETRY_COUNT);
+    console.info('Retrying capabilities in ' + delay + 'ms (attempt ' + this.capabilitiesRetryCount + ')');
+    setTimeout(() => { this.getRadarCapabilities(); }, delay);
   }
 
   private normalizeOverlayTransparency(value: number | undefined): number {
@@ -733,7 +765,7 @@ export class BomRadarCard extends LitElement implements LovelaceCard {
       }
 
       const targetOpacity = index === this.frame ? this.getOverlayOpacity() : 0;
-      map.setPaintProperty(layerId, 'fill-opacity', targetOpacity);
+      map.setPaintProperty(layerId, 'raster-opacity', targetOpacity);
     });
   }
 
@@ -811,8 +843,8 @@ async firstUpdated() {
       console.info('frame_restart ' + this.restart_delay.toString());
 
       const container = this.shadowRoot?.getElementById('map');
-      this.beforeLayer = (this._config.map_style === undefined) ? 'country-label-other' : (this._config.map_style === 'Light') ? 'country-label-other' : 'settlement-subdivision-label';
-      const styleUrl = (this._config.map_style === undefined) ? 'mapbox://styles/bom-dc-prod/cl82p806e000b15q6o92eppcb' : (this._config.map_style === 'Light') ? 'mapbox://styles/bom-dc-prod/cl82p806e000b15q6o92eppcb' : 'mapbox://styles/mapbox/dark-v11';
+      this.beforeLayer = (this._config.map_style === undefined) ? undefined : (this._config.map_style === 'Light') ? undefined : 'settlement-subdivision-label';
+      const styleUrl = (this._config.map_style === undefined) ? 'mapbox://styles/mapbox/light-v11' : (this._config.map_style === 'Light') ? 'mapbox://styles/mapbox/light-v11' : 'mapbox://styles/mapbox/dark-v11';
       if (container) {
         console.info('creating map');
         console.info('offset width ' + container.offsetWidth);
@@ -840,7 +872,7 @@ async firstUpdated() {
           attributionControl: false,
           maxBounds: [109, -47, 158.1, -7],
           minZoom: 3,
-          maxZoom: 10,
+          maxZoom: 8,
         });
 
         const el = document.createElement('div');
@@ -999,65 +1031,25 @@ async firstUpdated() {
 
   protected addRadarLayer(id: string) {
     if ((this.map !== undefined) && (id !== '') && (this.mapLoaded === true)) {
+      const tileUrl = `${wmtsTileBase}/${id}/GoogleMapsCompatible_BoM/{z}/{x}/{y}.png`;
+
       this.map.addSource(id, {
-        type: 'vector',
-        url: 'mapbox://bom-dc-prod.rain-prod-LPR-' + id
+        type: 'raster',
+        tiles: [tileUrl],
+        tileSize: 256,
       });
 
       this.map.addLayer({
-        'id': id, // Layer ID
-        'type': 'fill',
-        'source': id, // ID of the tile source created above
-        // Source has several layers. We visualize the one with name 'sequence'.
-        'source-layer': id,
+        'id': id,
+        'type': 'raster',
+        'source': id,
         'layout': {
           'visibility': 'visible'
         },
         'paint': {
-          'fill-opacity': 0,
-          'fill-opacity-transition': { "duration": 5, "delay": 0 },
-          'fill-color': [
-            'interpolate',
-            [
-              'linear'
-            ],
-            [
-              'get',
-              'value'
-            ],
-            0,
-            'hsla(240, 100%, 98%, 0)',
-            0.4,
-            '#f5f5ff',
-            1.6,
-            '#b4b4ff',
-            3.1,
-            '#7878ff',
-            4.7,
-            '#1414ff',
-            7,
-            '#00d8c3',
-            10.5,
-            '#009690',
-            15.8,
-            '#006666',
-            23.7,
-            '#ffff00',
-            35.5,
-            '#ffc800',
-            53.4,
-            '#ff9600',
-            80.1,
-            '#ff6400',
-            120.3,
-            '#ff0000',
-            180.5,
-            '#c80000',
-            271.1,
-            '#780000',
-            406.9,
-            '#280000'
-          ]
+          'raster-opacity': 0,
+          'raster-opacity-transition': { "duration": 5, "delay": 0 },
+          'raster-fade-duration': 0,
         }
       }
         , this.beforeLayer
@@ -1076,15 +1068,29 @@ async firstUpdated() {
 
   protected loadRadarLayers() {
     console.info('times:');
-    for (let i = 0; i < this.frame_count; i++) {
-      const time = this.start_time + (i * 5 * 60 * 1000);
-      const ts = new Date(time).toISOString();
-      const id = ts.replace(':00.000Z', '').replaceAll('-', '').replace('T', '').replace(':', '');
+    // Use actual timestamps from WMTS capabilities when available
+    const timestamps = this.availableTimestamps.length > 0
+      ? this.availableTimestamps.slice(-this.frame_count)
+      : this.generateTimestamps();
+
+    for (const ts of timestamps) {
+      // Use the WMTS timestamp directly as the layer ID (e.g. '2026-02-15T08:45:00Z')
+      const id = ts;
       this.mapLayers.push(id);
       this.radarTime.push(this.getRadarTimeString(ts));
       this.addRadarLayer(id);
       console.info('  ' + id);
     }
+  }
+
+  private generateTimestamps(): string[] {
+    const timestamps: string[] = [];
+    for (let i = 0; i < this.frame_count; i++) {
+      const time = this.start_time + (i * 5 * 60 * 1000);
+      const ts = new Date(time).toISOString().replace('.000Z', 'Z');
+      timestamps.push(ts);
+    }
+    return timestamps;
   }
 
   private changeRadarFrame(): void {
@@ -1095,11 +1101,11 @@ async firstUpdated() {
       const nextLayer = this.mapLayers[next];
 
       if (currentLayer && this.map.getLayer(currentLayer)) {
-        this.map.setPaintProperty(currentLayer, 'fill-opacity', 0);
+        this.map.setPaintProperty(currentLayer, 'raster-opacity', 0);
       }
 
       if (nextLayer && this.map.getLayer(nextLayer)) {
-        this.map.setPaintProperty(nextLayer, 'fill-opacity', this.getOverlayOpacity());
+        this.map.setPaintProperty(nextLayer, 'raster-opacity', this.getOverlayOpacity());
       }
       if (extra) {
         const oldLayer = this.mapLayers.shift();
@@ -1213,7 +1219,7 @@ async firstUpdated() {
     if ((changedProps.has('currentTime')) && (this.currentTime !== '')) {
       if (this.map !== undefined) {
         console.info('shouldUpdate ' + this.currentTime);
-        const id = this.currentTime.replaceAll("-", "").replace("T", "").replace(":", "").replace("Z", "");
+        const id = this.currentTime;
         this.mapLayers.push(id);
         this.radarTime.push(this.getRadarTimeString(this.currentTime));
         this.addRadarLayer(id);

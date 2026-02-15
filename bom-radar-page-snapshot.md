@@ -1,0 +1,307 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e6]:
+      - img [ref=e9]
+      - generic [ref=e12]:
+        - region [ref=e13]:
+          - text: We use cookies on our site – see our
+          - link "privacy" [ref=e14] [cursor=pointer]:
+            - /url: /privacy
+          - text: policy for details
+        - button "Ok" [ref=e16] [cursor=pointer]:
+          - generic [ref=e17]: Ok
+    - banner [ref=e20]:
+      - generic [ref=e21]:
+        - link "The Bureau of Meteorology" [ref=e23] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e24]: The Bureau of Meteorology
+        - list [ref=e26]:
+          - listitem [ref=e27]:
+            - link "Warnings and alerts" [ref=e29] [cursor=pointer]:
+              - /url: /weather-and-climate/warnings-and-alerts
+              - img [ref=e31]
+          - listitem [ref=e34]:
+            - button "Favourite locations" [ref=e37] [cursor=pointer]:
+              - img [ref=e39]
+              - generic [ref=e41]: Favourite locations
+          - listitem [ref=e42]:
+            - button "Search" [ref=e46] [cursor=pointer]:
+              - img [ref=e48]
+          - listitem [ref=e50]:
+            - button "open menu" [ref=e52] [cursor=pointer]:
+              - img [ref=e54]
+    - navigation "Breadcrumbs" [ref=e61]:
+      - list [ref=e62]:
+        - listitem [ref=e63]:
+          - link "Home" [ref=e64] [cursor=pointer]:
+            - /url: /
+            - img [ref=e66]
+        - listitem [ref=e68]:
+          - img [ref=e70]
+          - link "Weather and climate" [ref=e72] [cursor=pointer]:
+            - /url: /weather-and-climate
+        - listitem [ref=e73]:
+          - img [ref=e75]
+          - generic "Rain radar and weather maps" [ref=e77]
+    - main [ref=e78]:
+      - generic [ref=e82]:
+        - generic [ref=e84]:
+          - heading "Rain radar and weather maps" [level=1] [ref=e86]
+          - paragraph [ref=e87]: See rain, wind, wave and other weather information for Australia
+        - generic [ref=e88]:
+          - tablist "Page sections" [ref=e90]:
+            - tab "Weather map" [selected] [ref=e91] [cursor=pointer]:
+              - generic [ref=e92]: Weather map
+            - tab "Charts and more maps" [ref=e93] [cursor=pointer]:
+              - generic [ref=e94]: Charts and more maps
+            - tab "More radars" [ref=e95] [cursor=pointer]:
+              - generic [ref=e96]: More radars
+          - tabpanel "Weather map" [ref=e97]:
+            - generic [ref=e99]:
+              - heading "Weather map" [level=2] [ref=e100]
+              - generic [ref=e101]:
+                - generic [ref=e104]:
+                  - generic [ref=e105]: Search for a location
+                  - combobox "Search for a location" [ref=e106]
+                - button "Use my current location" [ref=e110] [cursor=pointer]:
+                  - img [ref=e112]
+                  - generic [ref=e115]: Use my current location
+              - tablist "Types of weather" [ref=e116]:
+                - tab "Rain" [selected] [ref=e117] [cursor=pointer]:
+                  - generic [ref=e118]: Rain
+                - tab "Wind" [ref=e119] [cursor=pointer]:
+                  - generic [ref=e120]: Wind
+                - tab "Temperature" [ref=e121] [cursor=pointer]:
+                  - generic [ref=e122]: Temperature
+                - button "More weather" [ref=e123] [cursor=pointer]:
+                  - generic [ref=e124]:
+                    - generic [ref=e125]: More weather
+                    - img [ref=e127]
+              - tabpanel "Rain" [ref=e129]:
+                - generic [ref=e130]:
+                  - generic [ref=e131]:
+                    - generic [ref=e132]:
+                      - generic [ref=e133]: Rain reflectivity (dBZ)
+                      - button "legend information" [ref=e135] [cursor=pointer]:
+                        - img [ref=e137]
+                        - generic [ref=e141]: legend information
+                    - generic [ref=e142]:
+                      - img "Legend for Rain reflectivity (dBZ)" [ref=e143]
+                      - generic [ref=e159]:
+                        - generic [ref=e162]:
+                          - generic [ref=e163]: Light
+                          - text: Light
+                        - generic [ref=e166]:
+                          - generic [ref=e167]: Moderate
+                          - text: Moderate
+                        - generic [ref=e170]:
+                          - generic [ref=e171]: Heavy
+                          - text: Heavy
+                  - generic [ref=e173]:
+                    - application "Map showing past and forecast weather across Australia. See About this map to find out how to access the information in an accessible format." [ref=e174]
+                    - generic:
+                      - generic:
+                        - generic:
+                          - button "Enter full screen" [ref=e177] [cursor=pointer]:
+                            - img [ref=e179]
+                          - button "More weather" [ref=e182] [cursor=pointer]:
+                            - img [ref=e184]
+                          - generic [ref=e186]:
+                            - button "Zoom in" [ref=e187] [cursor=pointer]:
+                              - img [ref=e191]
+                              - generic [ref=e193]: Zoom in
+                            - button "Zoom out" [ref=e194] [cursor=pointer]:
+                              - img [ref=e198]
+                              - generic [ref=e200]: Zoom out
+                        - generic [ref=e202]:
+                          - img "Scale for weather map" [ref=e203]
+                          - generic [ref=e205]: 1,000 km
+                      - generic [ref=e207]:
+                        - text: Powered by
+                        - link "Esri" [ref=e208] [cursor=pointer]:
+                          - /url: https://www.esri.com/en-us/legal/terms/full-master-agreement
+                        - text: "| See About this map."
+                  - generic [ref=e209]:
+                    - button "Pause Loop" [ref=e449] [cursor=pointer]:
+                      - img [ref=e450]
+                      - generic [ref=e214]: Pause
+                      - generic [ref=e452]: Loop
+                    - generic [ref=e216]:
+                      - generic [ref=e453]: Sunday 15 Feb, 07:00 pm
+                      - generic [ref=e458] [cursor=pointer]:
+                        - button "Sunday 15 Feb, 06:45 pm" [ref=e459]
+                        - button "Sunday 15 Feb, 06:50 pm" [ref=e460]
+                        - button "Sunday 15 Feb, 06:55 pm" [ref=e461]
+                        - button "Sunday 15 Feb, 07:00 pm" [ref=e462]
+                        - button "Sunday 15 Feb, 07:05 pm" [ref=e464]
+                        - button "Sunday 15 Feb, 07:10 pm" [ref=e465]
+                        - button "Sunday 15 Feb, 07:15 pm" [ref=e466]
+                        - button "Sunday 15 Feb, 07:00 pm" [ref=e467]
+                  - generic [ref=e234]:
+                    - generic [ref=e236]:
+                      - generic [ref=e237]: "Timezone:"
+                      - combobox "Timezone:" [ref=e238] [cursor=pointer]:
+                        - option "Sydney AEDT"
+                        - option "Melbourne AEDT"
+                        - option "Brisbane AEST" [selected]
+                        - option "Perth AWST"
+                        - option "Adelaide ACDT"
+                        - option "Hobart AEDT"
+                        - option "Darwin ACST"
+                    - button "step forward" [ref=e240] [cursor=pointer]:
+                      - img [ref=e242]
+                      - generic [ref=e245]: step forward
+              - button "About this map" [ref=e246] [cursor=pointer]:
+                - generic [ref=e248]:
+                  - img [ref=e249]
+                  - text: About this map
+                - img [ref=e254]
+            - generic [ref=e258]:
+              - heading "View satellite images" [level=2] [ref=e259]
+              - generic [ref=e261]: See weather heading your way with our satellite viewer.
+              - link "Satellite viewer" [ref=e263] [cursor=pointer]:
+                - /url: http://satview.bom.gov.au/
+                - generic [ref=e264]: Satellite viewer
+            - generic [ref=e266]:
+              - heading "You may also be interested in" [level=3] [ref=e267]
+              - link "Warnings and alerts Warnings and alerts about significant weather events, to help save lives and property" [ref=e269] [cursor=pointer]:
+                - /url: /weather-and-climate/warnings-and-alerts
+                - generic [ref=e270]:
+                  - heading "Warnings and alerts" [level=3] [ref=e271]:
+                    - text: Warnings and alerts
+                    - img [ref=e273]
+                  - paragraph [ref=e277]: Warnings and alerts about significant weather events, to help save lives and property
+              - link "Specialised forecasts and observations Forecasts and past weather for oceans, rivers and lakes, heatwaves, tropical cyclones, aviation, space, alpine areas and more" [ref=e279] [cursor=pointer]:
+                - /url: /weather-and-climate/specialised-forecasts-and-observations
+                - generic [ref=e280]:
+                  - heading "Specialised forecasts and observations" [level=3] [ref=e281]:
+                    - text: Specialised forecasts and observations
+                    - img [ref=e283]
+                  - paragraph [ref=e287]: Forecasts and past weather for oceans, rivers and lakes, heatwaves, tropical cyclones, aviation, space, alpine areas and more
+              - link "Learn and explore Learn about weather, climate, oceans and water, and explore our educational resources" [ref=e289] [cursor=pointer]:
+                - /url: /resources/learn-and-explore
+                - generic [ref=e290]:
+                  - heading "Learn and explore" [level=3] [ref=e291]:
+                    - text: Learn and explore
+                    - img [ref=e293]
+                  - paragraph [ref=e297]: Learn about weather, climate, oceans and water, and explore our educational resources
+      - generic [ref=e301]:
+        - generic [ref=e306]:
+          - generic:
+            - generic [ref=e307]: Share this page
+            - list [ref=e308]:
+              - listitem [ref=e309]:
+                - link "share on x" [ref=e310] [cursor=pointer]:
+                  - /url: https://twitter.com/share?text=Rain%20radar%20and%20weather%20maps%20%7C%20The%20Bureau%20of%20Meteorology&url=https://www.bom.gov.au/weather-and-climate/rain-radar-and-weather-maps
+                  - img [ref=e312]
+              - listitem [ref=e314]:
+                - link "share on facebook" [ref=e315] [cursor=pointer]:
+                  - /url: https://facebook.com/sharer.php?u=https://www.bom.gov.au/weather-and-climate/rain-radar-and-weather-maps
+                  - img [ref=e317]
+              - listitem [ref=e319]:
+                - link "share on linkedin" [ref=e320] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/shareArticle?mini=true&url=https://www.bom.gov.au/weather-and-climate/rain-radar-and-weather-maps&title=Rain%20radar%20and%20weather%20maps%20%7C%20The%20Bureau%20of%20Meteorology
+                  - img [ref=e322]
+              - listitem [ref=e324]:
+                - link "share via email" [ref=e325] [cursor=pointer]:
+                  - /url: mailto:?subject=Rain%20radar%20and%20weather%20maps%20%7C%20The%20Bureau%20of%20Meteorology&body=From The Bureau of Meteorology%0d%0ahttps://www.bom.gov.au/weather-and-climate/rain-radar-and-weather-maps
+                  - img [ref=e327]
+        - form [ref=e332]:
+          - generic [ref=e334]:
+            - generic [ref=e335]: Was this page useful?
+            - radiogroup "Was this page useful?" [ref=e336]:
+              - generic [ref=e337]:
+                - generic [ref=e338]:
+                  - radio "Yes" [ref=e339]
+                  - generic [ref=e340] [cursor=pointer]: "Yes"
+                - generic [ref=e341]:
+                  - radio "No" [ref=e342]
+                  - generic [ref=e343] [cursor=pointer]: "No"
+    - contentinfo "footer" [ref=e344]:
+      - generic [ref=e345]:
+        - generic [ref=e347]:
+          - generic [ref=e353]:
+            - paragraph [ref=e354]: We acknowledge the traditional custodians of Australia, and their continuing connection to land, sea, and community. We respect their Elders, past and present, and all Aboriginal and Torres Strait Islander nations.
+            - link "Indigenous weather knowledge" [ref=e355] [cursor=pointer]:
+              - /url: /resources/indigenous-weather-knowledge
+              - generic [ref=e356]: Indigenous weather knowledge
+              - img [ref=e358]
+          - navigation [ref=e362]:
+            - list [ref=e363]:
+              - listitem [ref=e364]:
+                - link "About the Bureau" [ref=e365] [cursor=pointer]:
+                  - /url: /about-the-bureau
+              - listitem [ref=e366]:
+                - link "Website help" [ref=e367] [cursor=pointer]:
+                  - /url: /website-help
+              - listitem [ref=e368]:
+                - link "Contact" [ref=e369] [cursor=pointer]:
+                  - /url: /contact
+              - listitem [ref=e370]:
+                - link "News and media" [ref=e371] [cursor=pointer]:
+                  - /url: /news-and-media
+              - listitem [ref=e372]:
+                - link "BOM Weather app" [ref=e373] [cursor=pointer]:
+                  - /url: /bom-weather-app
+              - listitem [ref=e374]:
+                - link "Events" [ref=e375] [cursor=pointer]:
+                  - /url: /events
+              - listitem [ref=e376]:
+                - link "Glossary" [ref=e377] [cursor=pointer]:
+                  - /url: /glossary
+              - listitem [ref=e378]:
+                - link "FOI" [ref=e379] [cursor=pointer]:
+                  - /url: /foi
+              - listitem [ref=e380]:
+                - link "Tenders and payments" [ref=e381] [cursor=pointer]:
+                  - /url: /tenders-and-payments
+        - generic [ref=e382]:
+          - generic [ref=e384]:
+            - list [ref=e389]:
+              - listitem [ref=e390]:
+                - link "The Bureau on x" [ref=e391] [cursor=pointer]:
+                  - /url: https://twitter.com/BOM_au
+                  - img [ref=e393]
+              - listitem [ref=e395]:
+                - link "The Bureau on Facebook" [ref=e396] [cursor=pointer]:
+                  - /url: http://www.facebook.com/bureauofmeteorology
+                  - img [ref=e398]
+              - listitem [ref=e400]:
+                - link "The Bureau on Instagram" [ref=e401] [cursor=pointer]:
+                  - /url: https://www.instagram.com/bureauofmeteorology/
+                  - img [ref=e403]
+              - listitem [ref=e405]:
+                - link "The Bureau on Youtube" [ref=e406] [cursor=pointer]:
+                  - /url: http://www.youtube.com/user/BureauOfMeteorology
+                  - img [ref=e408]
+              - listitem [ref=e410]:
+                - link "The Bureau on LinkedIn" [ref=e411] [cursor=pointer]:
+                  - /url: https://www.linkedin.com/company/bureau-of-meteorology/
+                  - img [ref=e413]
+            - link "Australian Government Bureau of Meteorology logo" [ref=e417] [cursor=pointer]:
+              - /url: https://www.bom.gov.au/
+              - img "Australian Government Bureau of Meteorology logo" [ref=e418]
+          - generic [ref=e420]:
+            - navigation [ref=e424]:
+              - list [ref=e425]:
+                - listitem [ref=e426]:
+                  - link "Sitemap" [ref=e427] [cursor=pointer]:
+                    - /url: /sitemap
+                - listitem [ref=e428]:
+                  - link "Disclaimer" [ref=e429] [cursor=pointer]:
+                    - /url: /disclaimer
+                - listitem [ref=e430]:
+                  - link "Privacy" [ref=e431] [cursor=pointer]:
+                    - /url: /privacy
+                - listitem [ref=e432]:
+                  - link "Accessibility" [ref=e433] [cursor=pointer]:
+                    - /url: /accessibility
+            - paragraph [ref=e438]:
+              - link "Copyright" [ref=e439] [cursor=pointer]:
+                - /url: /copyright
+              - text: © Commonwealth of Australia 2026, The Bureau of Meteorology
+  - generic [ref=e442]:
+    - button "Feedback" [ref=e443] [cursor=pointer]
+    - button "Close" [ref=e444] [cursor=pointer]:
+      - img [ref=e446]
+      - generic [ref=e448]: Close
