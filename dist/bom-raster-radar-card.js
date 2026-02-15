@@ -15494,8 +15494,24 @@ __decorate([
 __decorate([
     r()
 ], BomRasterRadarCard.prototype, "progressPercent", void 0);
-if (!customElements.get('bom-raster-radar-card')) {
-    customElements.define('bom-raster-radar-card', BomRasterRadarCard);
+const CARD_TAG_NAME = 'bom-raster-radar-card';
+if (!customElements.get(CARD_TAG_NAME)) {
+    try {
+        customElements.define(CARD_TAG_NAME, BomRasterRadarCard);
+    }
+    catch (error) {
+        const isConstructorReuseError = error instanceof Error && error.message.includes('this constructor has already been used with this registry');
+        if (!isConstructorReuseError) {
+            throw error;
+        }
+        // If another loaded bundle already registered this constructor under a different tag,
+        // register a lightweight subclass for this tag instead of crashing the dashboard.
+        class BomRasterRadarCardElement extends BomRasterRadarCard {
+        }
+        if (!customElements.get(CARD_TAG_NAME)) {
+            customElements.define(CARD_TAG_NAME, BomRasterRadarCardElement);
+        }
+    }
 }
 
 export { BomRasterRadarCard };
