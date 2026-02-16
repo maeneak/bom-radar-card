@@ -3,14 +3,20 @@ import { css, type CSSResultGroup } from 'lit';
 export const cardStyles: CSSResultGroup = css`
   :host {
     display: block;
+    position: relative;
+    z-index: 0;
   }
 
   ha-card {
     overflow: hidden;
+    position: relative;
+    z-index: 0;
   }
 
   .card-root {
     position: relative;
+    z-index: 0;
+    isolation: isolate;
   }
 
   .map-wrap {
@@ -18,11 +24,13 @@ export const cardStyles: CSSResultGroup = css`
     width: 100%;
     aspect-ratio: 4 / 3;
     background: var(--disabled-color);
+    z-index: 0;
   }
 
   .map {
     position: absolute;
     inset: 0;
+    z-index: 0;
   }
 
   .progress-track {
