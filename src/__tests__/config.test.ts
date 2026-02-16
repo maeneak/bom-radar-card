@@ -6,7 +6,7 @@ describe('normalizeConfig', () => {
   it('applies defaults and card type', () => {
     const config = normalizeConfig({ entity: 'device_tracker.phone' }, { requireEntity: true });
 
-    expect(config.type).toBe('custom:bom-raster-radar-card');
+    expect(config.type).toBe('custom:rainviewer-radar-card');
     expect(config.map_style).toBe('Light');
     expect(config.zoom_level).toBe(8);
     expect(config.hide_header).toBe(false);

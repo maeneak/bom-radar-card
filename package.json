@@ -1,7 +1,7 @@
 {
-  "name": "bom-raster-radar-card",
+  "name": "rainviewer-radar-card",
   "version": "5.0.0",
-  "description": "A rain radar card using the new vector tiles from the Australian BOM",
+  "description": "A rain radar card using RainViewer composite radar imagery",
   "keywords": [
     "home-assistant",
     "homeassistant",
@@ -10,8 +10,8 @@
     "lovelace",
     "custom-cards"
   ],
-  "module": "bom-raster-radar-card.js",
-  "repository": "git@github.com:makin-things/bom-radar-card.git",
+  "module": "rainviewer-radar-card.js",
+  "repository": "git@github.com:makin-things/rainviewer-radar-card.git",
   "author": "Hayden Kliese <hayden@kliese.net> Simon Ratcliffe <simon@makin-things.com>",
   "license": "MIT",
   "dependencies": {

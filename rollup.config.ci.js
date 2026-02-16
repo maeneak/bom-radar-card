@@ -5,9 +5,9 @@ import json from '@rollup/plugin-json';
 import copy from 'rollup-plugin-copy';
 
 export default {
-  input: 'src/bom-raster-radar-card.ts',
+  input: 'src/rainviewer-radar-card.ts',
   output: {
-    file: 'dist/bom-raster-radar-card.js',
+    file: 'dist/rainviewer-radar-card.js',
     format: 'es',
   },
   onwarn(warning, warn) {

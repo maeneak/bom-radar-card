@@ -1,7 +1,7 @@
 import type { HomeAssistant } from 'custom-card-helpers';
 
 import { CARD_TYPE } from './const';
-import type { BomGridOptions, BomRasterRadarCardConfig } from './types';
+import type { RainviewerGridOptions, RainviewerRadarCardConfig } from './types';
 
 const DEFAULT_FRAME_COUNT = 7;
 const DEFAULT_FRAME_DELAY = 250;
@@ -13,7 +13,7 @@ export const DEFAULT_CENTER = {
   longitude: 133.75,
 };
 
-export const GRID_OPTIONS: BomGridOptions = {
+export const GRID_OPTIONS: RainviewerGridOptions = {
   columns: 2,
   rows: 3,
   min_columns: 2,
@@ -85,7 +85,7 @@ const CONFIG_FORM_LABELS: Record<string, string> = {
 
 const CONFIG_FORM_HELPERS: Record<string, string> = {
   entity: 'Used for initial center, live marker location, and marker icon.',
-  map_style: 'Light uses OpenStreetMap Standard. Dark uses CARTO Dark Matter (OSM-based).',
+  map_style: 'ArcGIS satellite base tiles.',
   frame_count: 'Number of radar frames shown in the animation loop.',
   overlay_transparency: '0% is fully opaque radar, 90% is highly transparent.',
 };
@@ -120,9 +120,9 @@ export interface NormalizeConfigOptions {
 }
 
 export const normalizeConfig = (
-  config: Partial<BomRasterRadarCardConfig>,
+  config: Partial<RainviewerRadarCardConfig>,
   options: NormalizeConfigOptions = {},
-): BomRasterRadarCardConfig => {
+): RainviewerRadarCardConfig => {
   const entity = sanitizeEntity(config.entity);
   if (options.requireEntity && entity.length === 0) {
     throw new Error('Required configuration missing: "entity" must be set to a device_tracker or person entity.');

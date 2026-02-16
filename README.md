@@ -1,4 +1,4 @@
-# BOM Raster Radar Card
+# RainViewer Radar Card
 
 A Home Assistant Lovelace custom card that shows animated rain radar frames (RainViewer) on a Leaflet map.
 
@@ -23,18 +23,18 @@ A Home Assistant Lovelace custom card that shows animated rain radar frames (Rai
    - `center_longitude`
    - `marker_latitude`
    - `marker_longitude`
-3. Legacy card type alias `custom:bom-radar-card` is removed.
+3. Card type is now `custom:rainviewer-radar-card`.
 4. Minimum Home Assistant version is now `2025.2.0`.
 
 ## Configuration
 
 | Name | Type | Required | Description | Default |
 | --- | --- | --- | --- | --- |
-| `type` | string | Yes | Card type | `custom:bom-raster-radar-card` |
+| `type` | string | Yes | Card type | `custom:rainviewer-radar-card` |
 | `entity` | string | Yes | Tracker entity (`device_tracker.*` or `person.*`) | none |
 | `card_title` | string | No | Optional card header title | entity friendly name |
 | `hide_header` | boolean | No | Hide header/title area entirely | `false` |
-| `map_style` | string | No | `Light` = OpenStreetMap Standard, `Dark` = CARTO Dark Matter (OSM-based) | `Light` |
+| `map_style` | string | No | ArcGIS satellite basemap (`World_Imagery`) | `Light` |
 | `zoom_level` | number | No | Initial zoom (3-10) | `8` |
 | `show_marker` | boolean | No | Show tracked marker | `true` |
 | `show_zoom` | boolean | No | Show zoom control | `true` |
@@ -48,7 +48,7 @@ A Home Assistant Lovelace custom card that shows animated rain radar frames (Rai
 ## Example
 
 ```yaml
-type: custom:bom-raster-radar-card
+type: custom:rainviewer-radar-card
 entity: device_tracker.pixel_phone
 card_title: Rain Radar
 hide_header: false
@@ -69,7 +69,6 @@ show_scale: true
 ### v4
 
 ```yaml
-type: custom:bom-radar-card
 center_latitude: -33.86
 center_longitude: 151.2
 marker_latitude: -33.86
@@ -79,7 +78,7 @@ marker_longitude: 151.2
 ### v5
 
 ```yaml
-type: custom:bom-raster-radar-card
+type: custom:rainviewer-radar-card
 entity: device_tracker.phone
 ```
 
@@ -93,7 +92,7 @@ Install from HACS, then confirm resource:
 
 ```yaml
 resources:
-  - url: /hacsfiles/bom-radar-card/bom-raster-radar-card.js
+  - url: /hacsfiles/rainviewer-radar-card/rainviewer-radar-card.js
     type: module
 ```
 
@@ -101,13 +100,13 @@ resources:
 
 Place release files in:
 
-`config/www/community/bom-raster-radar-card/`
+`config/www/community/rainviewer-radar-card/`
 
 Then add:
 
 ```yaml
 resources:
-  - url: /local/community/bom-raster-radar-card/bom-raster-radar-card.js
+  - url: /local/community/rainviewer-radar-card/rainviewer-radar-card.js
     type: module
 ```
 
@@ -120,6 +119,6 @@ npm run test:run
 npm run build
 ```
 
-[license-shield]: https://img.shields.io/github/license/makin-things/bom-radar-card.svg?style=for-the-badge
-[releases-shield]: https://img.shields.io/github/release/makin-things/bom-radar-card.svg?style=for-the-badge
-[releases]: https://github.com/makin-things/bom-radar-card/releases
+[license-shield]: https://img.shields.io/github/license/makin-things/rainviewer-radar-card.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/makin-things/rainviewer-radar-card.svg?style=for-the-badge
+[releases]: https://github.com/makin-things/rainviewer-radar-card/releases

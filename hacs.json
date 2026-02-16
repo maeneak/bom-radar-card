@@ -1,6 +1,6 @@
 {
-  "name": "BOM Raster Radar Card",
+  "name": "RainViewer Radar Card",
   "render_readme": true,
-  "filename": "bom-raster-radar-card.js",
+  "filename": "rainviewer-radar-card.js",
   "homeassistant": "2025.2.0"
 }

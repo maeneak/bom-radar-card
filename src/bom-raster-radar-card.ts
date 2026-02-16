@@ -1,1 +1,0 @@
-export { BomRasterRadarCard } from './card';

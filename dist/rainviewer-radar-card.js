@@ -64,7 +64,7 @@ const t=globalThis,i$1=t=>t,s$1=t.trustedTypes,e=s$1?s$1.createPolicy("lit-html"
  */function r(r){return n({...r,state:!0,attribute:!1})}
 
 const CARD_VERSION = '5.0.0';
-const CARD_TYPE = 'custom:bom-raster-radar-card';
+const CARD_TYPE = 'custom:rainviewer-radar-card';
 
 const DEFAULT_FRAME_COUNT = 7;
 const DEFAULT_FRAME_DELAY = 250;
@@ -142,7 +142,7 @@ const CONFIG_FORM_LABELS = {
 };
 const CONFIG_FORM_HELPERS = {
     entity: 'Used for initial center, live marker location, and marker icon.',
-    map_style: 'Light uses OpenStreetMap Standard. Dark uses CARTO Dark Matter (OSM-based).',
+    map_style: 'ArcGIS satellite base tiles.',
     frame_count: 'Number of radar frames shown in the animation loop.',
     overlay_transparency: '0% is fully opaque radar, 90% is highly transparent.',
 };
@@ -14821,18 +14821,13 @@ class RecenterControl extends leafletSrcExports.Control {
 }
 const escapeHtml = (value) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const getBaseLayerConfig = (style) => {
-    if (style === 'Dark') {
-        return {
-            tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-            maxZoom: 20,
-            subdomains: 'abcd',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        };
-    }
+    // Keep legacy Light/Dark config values while using ArcGIS satellite tiles.
+    const arcgisStyle = style === 'Dark' ? 'World_Imagery' : 'World_Imagery';
     return {
-        tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        tileUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/{style}/MapServer/tile/{z}/{y}/{x}',
+        style: arcgisStyle,
         maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
     };
 };
 class MapController {
@@ -14872,12 +14867,10 @@ class MapController {
             this.map.removeLayer(this.baseLayer);
         }
         const tileLayerOptions = {
+            style: baseLayerConfig.style,
             maxZoom: baseLayerConfig.maxZoom,
             attribution: baseLayerConfig.attribution,
         };
-        if (baseLayerConfig.subdomains !== undefined) {
-            tileLayerOptions.subdomains = baseLayerConfig.subdomains;
-        }
         this.baseLayer = leafletSrcExports.tileLayer(baseLayerConfig.tileUrl, tileLayerOptions);
         this.baseLayer.addTo(this.map);
     }
@@ -15103,15 +15096,15 @@ const cardStyles = i$3 `
 `;
 
 var _a;
-console.info(`%c  BOM-RASTER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `, 'color: orange; font-weight: bold; background: black', 'color: white; font-weight: bold; background: dimgray');
+console.info(`%c  RAINVIEWER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `, 'color: orange; font-weight: bold; background: black', 'color: white; font-weight: bold; background: dimgray');
 const RADAR_COLOR_BAR_URL = new URL('./assets/radar-colour-bar.png', import.meta.url).toString();
 window.customCards = (_a = window.customCards) !== null && _a !== void 0 ? _a : [];
 window.customCards.push({
-    type: 'bom-raster-radar-card',
-    name: 'BoM Raster Radar Card',
+    type: 'rainviewer-radar-card',
+    name: 'RainViewer Radar Card',
     description: 'A rain radar card using RainViewer composite radar imagery',
 });
-class BomRasterRadarCard extends i {
+class RainviewerRadarCard extends i {
     constructor() {
         super(...arguments);
         this.isPanel = false;
@@ -15147,7 +15140,7 @@ class BomRasterRadarCard extends i {
     setConfig(config) {
         const legacyKeys = getLegacyLocationKeys(config);
         if (legacyKeys.length > 0 && !this.legacyWarningLogged) {
-            console.warn(`[bom-raster-radar-card] v5 removed the following config keys: ${legacyKeys.join(', ')}. Use "entity" instead for location.`);
+            console.warn(`[rainviewer-radar-card] v5 removed the following config keys: ${legacyKeys.join(', ')}. Use "entity" instead for location.`);
             this.legacyWarningLogged = true;
         }
         this._config = normalizeConfig(config, { requireEntity: true });
@@ -15171,7 +15164,7 @@ class BomRasterRadarCard extends i {
             return;
         }
         if (!isSupportedEntityDomain(this._config.entity) && !this.unsupportedDomainWarningLogged) {
-            console.warn(`[bom-raster-radar-card] "entity" should be a device_tracker or person. Received: ${this._config.entity}.`);
+            console.warn(`[rainviewer-radar-card] "entity" should be a device_tracker or person. Received: ${this._config.entity}.`);
             this.unsupportedDomainWarningLogged = true;
         }
         const configKey = '_config';
@@ -15218,7 +15211,7 @@ class BomRasterRadarCard extends i {
     }
     resolveHeader() {
         if (!this._config) {
-            return 'BoM Radar';
+            return 'RainViewer Radar';
         }
         if (this._config.hide_header) {
             return undefined;
@@ -15227,7 +15220,7 @@ class BomRasterRadarCard extends i {
             return this._config.card_title;
         }
         if (!this.hass) {
-            return 'BoM Radar';
+            return 'RainViewer Radar';
         }
         return resolveEntityName(this.hass, this._config.entity);
     }
@@ -15290,7 +15283,7 @@ class BomRasterRadarCard extends i {
             await this.refreshRadarSnapshot(true);
         }
         catch (error) {
-            console.error('[bom-raster-radar-card] Failed to initialize map.', error);
+            console.error('[rainviewer-radar-card] Failed to initialize map.', error);
         }
         finally {
             this.isInitializingMap = false;
@@ -15340,7 +15333,7 @@ class BomRasterRadarCard extends i {
             this.scheduleNextFrame((_c = this._config.restart_delay) !== null && _c !== void 0 ? _c : 1000);
         }
         catch (error) {
-            console.error('[bom-raster-radar-card] Failed to fetch radar frames.', error);
+            console.error('[rainviewer-radar-card] Failed to fetch radar frames.', error);
             this.scheduleRetry();
         }
     }
@@ -15475,29 +15468,29 @@ class BomRasterRadarCard extends i {
         this.mapController.setMarker([markerCoordinates.latitude, markerCoordinates.longitude], icon, markerVisible);
     }
 }
-BomRasterRadarCard.styles = cardStyles;
+RainviewerRadarCard.styles = cardStyles;
 __decorate([
     n({ attribute: false })
-], BomRasterRadarCard.prototype, "hass", void 0);
+], RainviewerRadarCard.prototype, "hass", void 0);
 __decorate([
     n({ attribute: false })
-], BomRasterRadarCard.prototype, "editMode", void 0);
+], RainviewerRadarCard.prototype, "editMode", void 0);
 __decorate([
     n({ type: Boolean, reflect: true })
-], BomRasterRadarCard.prototype, "isPanel", void 0);
+], RainviewerRadarCard.prototype, "isPanel", void 0);
 __decorate([
     n({ attribute: false })
-], BomRasterRadarCard.prototype, "_config", void 0);
+], RainviewerRadarCard.prototype, "_config", void 0);
 __decorate([
     r()
-], BomRasterRadarCard.prototype, "timestampLabel", void 0);
+], RainviewerRadarCard.prototype, "timestampLabel", void 0);
 __decorate([
     r()
-], BomRasterRadarCard.prototype, "progressPercent", void 0);
-const CARD_TAG_NAME = 'bom-raster-radar-card';
+], RainviewerRadarCard.prototype, "progressPercent", void 0);
+const CARD_TAG_NAME = 'rainviewer-radar-card';
 if (!customElements.get(CARD_TAG_NAME)) {
     try {
-        customElements.define(CARD_TAG_NAME, BomRasterRadarCard);
+        customElements.define(CARD_TAG_NAME, RainviewerRadarCard);
     }
     catch (error) {
         const isConstructorReuseError = error instanceof Error && error.message.includes('this constructor has already been used with this registry');
@@ -15506,12 +15499,12 @@ if (!customElements.get(CARD_TAG_NAME)) {
         }
         // If another loaded bundle already registered this constructor under a different tag,
         // register a lightweight subclass for this tag instead of crashing the dashboard.
-        class BomRasterRadarCardElement extends BomRasterRadarCard {
+        class RainviewerRadarCardElement extends RainviewerRadarCard {
         }
         if (!customElements.get(CARD_TAG_NAME)) {
-            customElements.define(CARD_TAG_NAME, BomRasterRadarCardElement);
+            customElements.define(CARD_TAG_NAME, RainviewerRadarCardElement);
         }
     }
 }
 
-export { BomRasterRadarCard };
+export { RainviewerRadarCard };

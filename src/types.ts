@@ -1,13 +1,13 @@
 import type { LovelaceCardConfig } from 'custom-card-helpers';
 
-export type BomMapStyle = 'Light' | 'Dark';
+export type RainviewerMapStyle = 'Light' | 'Dark';
 
-export interface BomRasterRadarCardConfig extends LovelaceCardConfig {
-  type: 'custom:bom-raster-radar-card';
+export interface RainviewerRadarCardConfig extends LovelaceCardConfig {
+  type: 'custom:rainviewer-radar-card';
   entity: string;
   card_title?: string;
   hide_header?: boolean;
-  map_style?: BomMapStyle;
+  map_style?: RainviewerMapStyle;
   zoom_level?: number;
 
   show_marker?: boolean;
@@ -27,7 +27,7 @@ export interface BomRasterRadarCardConfig extends LovelaceCardConfig {
   show_header_toggle?: boolean;
 }
 
-export interface BomGridOptions {
+export interface RainviewerGridOptions {
   columns: number;
   rows: number;
   min_columns: number;

@@ -1,6 +1,6 @@
 import * as L from 'leaflet';
 
-import type { BomMapStyle } from './types';
+import type { RainviewerMapStyle } from './types';
 
 interface RecenterControlOptions extends L.ControlOptions {
   onRecenter: () => void;
@@ -35,7 +35,7 @@ export interface MapControllerOptions {
   container: HTMLElement;
   center: [number, number];
   zoom: number;
-  mapStyle: BomMapStyle;
+  mapStyle: RainviewerMapStyle;
   showScale: boolean;
   showZoom: boolean;
   showRecenter: boolean;
@@ -45,29 +45,24 @@ export interface MapControllerOptions {
 
 interface BaseLayerConfig {
   tileUrl: string;
+  style: string;
   maxZoom: number;
   attribution: string;
-  subdomains?: string;
 }
 
 const escapeHtml = (value: string): string =>
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 
-const getBaseLayerConfig = (style: BomMapStyle): BaseLayerConfig => {
-  if (style === 'Dark') {
-    return {
-      tileUrl: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      maxZoom: 20,
-      subdomains: 'abcd',
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-    };
-  }
+const getBaseLayerConfig = (style: RainviewerMapStyle): BaseLayerConfig => {
+  // Keep legacy Light/Dark config values while using ArcGIS satellite tiles.
+  const arcgisStyle = style === 'Dark' ? 'World_Imagery' : 'World_Imagery';
 
   return {
-    tileUrl: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    tileUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/{style}/MapServer/tile/{z}/{y}/{x}',
+    style: arcgisStyle,
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    attribution:
+      'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
   };
 };
 
@@ -110,20 +105,18 @@ export class MapController {
     }
   }
 
-  public setMapStyle(style: BomMapStyle): void {
+  public setMapStyle(style: RainviewerMapStyle): void {
     const baseLayerConfig = getBaseLayerConfig(style);
 
     if (this.baseLayer) {
       this.map.removeLayer(this.baseLayer);
     }
 
-    const tileLayerOptions: L.TileLayerOptions = {
+    const tileLayerOptions: L.TileLayerOptions & { style: string } = {
+      style: baseLayerConfig.style,
       maxZoom: baseLayerConfig.maxZoom,
       attribution: baseLayerConfig.attribution,
     };
-    if (baseLayerConfig.subdomains !== undefined) {
-      tileLayerOptions.subdomains = baseLayerConfig.subdomains;
-    }
 
     this.baseLayer = L.tileLayer(baseLayerConfig.tileUrl, tileLayerOptions);
     this.baseLayer.addTo(this.map);

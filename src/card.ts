@@ -23,10 +23,10 @@ import {
 import { MapController } from './map-controller';
 import { buildRadarTileUrl, fetchRadarSnapshot, formatRadarTimestamp, getNextSnapshotDelayMs, getRetryDelayMs } from './radar-source';
 import { cardStyles } from './styles';
-import type { BomGridOptions, BomRasterRadarCardConfig, Coordinates } from './types';
+import type { Coordinates, RainviewerGridOptions, RainviewerRadarCardConfig } from './types';
 
 console.info(
-  `%c  BOM-RASTER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `,
+  `%c  RAINVIEWER-RADAR-CARD  \n%c  Version ${CARD_VERSION}   `,
   'color: orange; font-weight: bold; background: black',
   'color: white; font-weight: bold; background: dimgray',
 );
@@ -48,15 +48,15 @@ declare global {
 
 window.customCards = window.customCards ?? [];
 window.customCards.push({
-  type: 'bom-raster-radar-card',
-  name: 'BoM Raster Radar Card',
+  type: 'rainviewer-radar-card',
+  name: 'RainViewer Radar Card',
   description: 'A rain radar card using RainViewer composite radar imagery',
 });
 
-export class BomRasterRadarCard extends LitElement implements LovelaceCard {
+export class RainviewerRadarCard extends LitElement implements LovelaceCard {
   static override styles = cardStyles;
 
-  public static getGridOptions(): BomGridOptions {
+  public static getGridOptions(): RainviewerGridOptions {
     return GRID_OPTIONS;
   }
 
@@ -68,7 +68,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
     };
   }
 
-  public static getStubConfig(hass?: HomeAssistant, entities?: string[]): BomRasterRadarCardConfig {
+  public static getStubConfig(hass?: HomeAssistant, entities?: string[]): RainviewerRadarCardConfig {
     return normalizeConfig(
       {
         type: CARD_TYPE,
@@ -81,7 +81,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   @property({ attribute: false }) public hass!: HomeAssistant;
   @property({ attribute: false }) public editMode?: boolean;
   @property({ type: Boolean, reflect: true }) public isPanel = false;
-  @property({ attribute: false }) private _config?: BomRasterRadarCardConfig;
+  @property({ attribute: false }) private _config?: RainviewerRadarCardConfig;
 
   @state() private timestampLabel = 'Loading radar...';
   @state() private progressPercent = 0;
@@ -102,11 +102,11 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   private legacyWarningLogged = false;
   private unsupportedDomainWarningLogged = false;
 
-  public setConfig(config: BomRasterRadarCardConfig): void {
+  public setConfig(config: RainviewerRadarCardConfig): void {
     const legacyKeys = getLegacyLocationKeys(config as unknown as Record<string, unknown>);
     if (legacyKeys.length > 0 && !this.legacyWarningLogged) {
       console.warn(
-        `[bom-raster-radar-card] v5 removed the following config keys: ${legacyKeys.join(
+        `[rainviewer-radar-card] v5 removed the following config keys: ${legacyKeys.join(
           ', ',
         )}. Use "entity" instead for location.`,
       );
@@ -139,12 +139,12 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
 
     if (!isSupportedEntityDomain(this._config.entity) && !this.unsupportedDomainWarningLogged) {
       console.warn(
-        `[bom-raster-radar-card] "entity" should be a device_tracker or person. Received: ${this._config.entity}.`,
+        `[rainviewer-radar-card] "entity" should be a device_tracker or person. Received: ${this._config.entity}.`,
       );
       this.unsupportedDomainWarningLogged = true;
     }
 
-    const configKey = '_config' as keyof BomRasterRadarCard;
+    const configKey = '_config' as keyof RainviewerRadarCard;
     if (changedProps.has(configKey) && this.mapController) {
       void this.rebuildMap();
       return;
@@ -194,7 +194,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
 
   private resolveHeader(): string | undefined {
     if (!this._config) {
-      return 'BoM Radar';
+      return 'RainViewer Radar';
     }
     if (this._config.hide_header) {
       return undefined;
@@ -203,7 +203,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
       return this._config.card_title;
     }
     if (!this.hass) {
-      return 'BoM Radar';
+      return 'RainViewer Radar';
     }
     return resolveEntityName(this.hass, this._config.entity);
   }
@@ -274,7 +274,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
       this.updateMarkerFromEntity();
       await this.refreshRadarSnapshot(true);
     } catch (error) {
-      console.error('[bom-raster-radar-card] Failed to initialize map.', error);
+      console.error('[rainviewer-radar-card] Failed to initialize map.', error);
     } finally {
       this.isInitializingMap = false;
     }
@@ -326,7 +326,7 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
       this.scheduleNextSnapshot(snapshot.latestTimeMs);
       this.scheduleNextFrame(this._config.restart_delay ?? 1000);
     } catch (error) {
-      console.error('[bom-raster-radar-card] Failed to fetch radar frames.', error);
+      console.error('[rainviewer-radar-card] Failed to fetch radar frames.', error);
       this.scheduleRetry();
     }
   }
@@ -496,11 +496,11 @@ export class BomRasterRadarCard extends LitElement implements LovelaceCard {
   }
 }
 
-const CARD_TAG_NAME = 'bom-raster-radar-card';
+const CARD_TAG_NAME = 'rainviewer-radar-card';
 
 if (!customElements.get(CARD_TAG_NAME)) {
   try {
-    customElements.define(CARD_TAG_NAME, BomRasterRadarCard);
+    customElements.define(CARD_TAG_NAME, RainviewerRadarCard);
   } catch (error) {
     const isConstructorReuseError =
       error instanceof Error && error.message.includes('this constructor has already been used with this registry');
@@ -511,10 +511,10 @@ if (!customElements.get(CARD_TAG_NAME)) {
 
     // If another loaded bundle already registered this constructor under a different tag,
     // register a lightweight subclass for this tag instead of crashing the dashboard.
-    class BomRasterRadarCardElement extends BomRasterRadarCard {}
+    class RainviewerRadarCardElement extends RainviewerRadarCard {}
 
     if (!customElements.get(CARD_TAG_NAME)) {
-      customElements.define(CARD_TAG_NAME, BomRasterRadarCardElement);
+      customElements.define(CARD_TAG_NAME, RainviewerRadarCardElement);
     }
   }
 }
